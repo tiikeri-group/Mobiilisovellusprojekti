@@ -1,3 +1,0 @@
-# Mobiilisovellusprojekti
-Mobiilisovellusprojekti
-mormo mormor
