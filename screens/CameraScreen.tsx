@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { AppUser } from '../types/auth';
 
 type BarcodeScanResult = {
   type: string;
@@ -12,7 +13,7 @@ type User = {
 };
 
 type CameraScreenProps = {
-  user: User;
+  user: AppUser;
 };
 
 const CameraScreen = ({ user }: CameraScreenProps) => {

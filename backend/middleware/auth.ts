@@ -1,5 +1,7 @@
 import jwt, { JwtPayload, VerifyErrors } from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import dotenv from "dotenv";
+
 
 const { verify } = jwt;
 
@@ -7,7 +9,7 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
   let token = req.headers['authorization'];
 
   if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
+    return res.status(401).json({ message: 'ei tokenia' });
   }
 
   if (typeof token === 'string' && token.startsWith('Bearer ')) {
@@ -16,10 +18,10 @@ const auth = (req: Request, res: Response, next: NextFunction) => {
 
   verify(
     token as string,
-    process.env.JWT_SECRET!,
+    process.env.JWT_SECRET as string,
     (err: VerifyErrors | null, decoded?: string | JwtPayload) => {
       if (err) {
-        return res.status(401).json({ message: 'Failed to authenticate token' });
+        return res.status(401).json({ message: 'virheellinen token' });
       }
 
       
