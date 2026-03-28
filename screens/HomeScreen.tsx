@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { AppUser } from '../types/auth';
 
-const HomeScreen = () => {
+type Props = {
+  user: AppUser;
+};
+
+const HomeScreen = ({ user }: Props) => {
 
   const [open, setOpen] = useState<boolean>(false);
   const [workout, setworkout] = useState<string>();
