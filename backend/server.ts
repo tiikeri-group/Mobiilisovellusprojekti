@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
+import doorRoutes from "./routes/doorRoutes";
 import { testConnection } from "./db";
 
 //muutettu server.ts koska muu backend typescriptillä ja server oli js. 
@@ -18,6 +19,7 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/doors", doorRoutes);
 
 const PORT = Number(process.env.PORT) || 3000;
 
