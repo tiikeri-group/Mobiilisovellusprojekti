@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import Tabs from "./navigation/Tabs";
 import AuthStack from "./navigation/AuthStack";
 import { AppUser } from "./types/auth";
@@ -60,13 +61,15 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      {token && user ? (
-        <Tabs user={user} onLogout={handleLogout} />
-      ) : (
-        <AuthStack onAuthSuccess={handleAuthSuccess} />
-      )}
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        {token && user ? (
+          <Tabs user={user} onLogout={handleLogout} />
+        ) : (
+          <AuthStack onAuthSuccess={handleAuthSuccess} />
+        )}
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
 
