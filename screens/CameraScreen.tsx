@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useNavigation } from '@react-navigation/native';
 import { AppUser } from '../types/auth';
+import { getStoredToken } from '../api/authClient';
 
 type BarcodeScanResult = {
   type: string;
@@ -17,46 +19,63 @@ type CameraScreenProps = {
 };
 
 const CameraScreen = ({ user }: CameraScreenProps) => {
+  const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [scannedDoorId, setScannedDoorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<boolean | null>(null);
+  const [failMessage, setFailMessage] = useState<string>('');
 
   const handleScan = async ({ data }: BarcodeScanResult) => {
 
-  // prevent multiple scans
-  if (scanned) return;
+    // prevent multiple scans
+    if (scanned) return;
 
-  setScanned(true);
-  setScannedDoorId(data);
-  setLoading(true);
-  setSuccess(null);
+    setScanned(true);
+    setScannedDoorId(data);
+    setLoading(true);
+    setSuccess(null);
+    setFailMessage('');
 
-  try {
-    const res = await fetch('http://192.168.1.124:3000/api/doors/unlock', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ door_id: data }), // make sure 'data' is a valid door ID
-    });
+    let unlocked = false;
 
-    const response = await res.json();
-    console.log('Unlock response:', response);
+    try {
+      const token = await getStoredToken();
+      const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/doors/unlock`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ door_id: data }),
+      });
 
-    if (response.success) setSuccess(true);
-    else setSuccess(false);
-  } catch (err) {
-    console.error(err);
-    setSuccess(false);
-  } finally {
-    setLoading(false);
-    // reset for next scan after 3s
-    setTimeout(() => {
-      setScanned(false);
-      setScannedDoorId(null);
-      setSuccess(null);
-    }, 3000);
-  }
+      const response = await res.json();
+      console.log('Unlock response:', response);
+
+      if (response.success) {
+        unlocked = true;
+        setSuccess(true);
+      } else {
+        setFailMessage(res.status === 403 ? 'Door unlock failed: no active subscription' : 'Door unlock failed');
+        setSuccess(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setFailMessage('Door unlock failed');
+      setSuccess(false);
+    } finally {
+      setLoading(false);
+      setTimeout(() => {
+        if (unlocked) {
+          navigation.navigate('Home' as never);
+        }
+        setScanned(false);
+        setScannedDoorId(null);
+        setSuccess(null);
+      }, 1500);
+    }
 
 
   };
@@ -78,28 +97,35 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
       {/* Camera */}
       <CameraView
         style={styles.camera}
-        onBarcodeScanned={handleScan} // always active
+        facing="back"
+        onBarcodeScanned={handleScan}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
       />
 
       {/* Overlay result */}
       <View style={styles.overlay}>
+        {/* Scan target box */}
+        <View style={styles.scanBox}>
+          <View style={[styles.corner, styles.topLeft]} />
+          <View style={[styles.corner, styles.topRight]} />
+          <View style={[styles.corner, styles.bottomLeft]} />
+          <View style={[styles.corner, styles.bottomRight]} />
+        </View>
+
         {scannedDoorId && (
           <View style={styles.resultBox}>
             {loading ? (
               <>
-                <Text style={styles.loadingText}>
-                  Unlocking door {scannedDoorId}...
-                </Text>
+                <Text style={styles.loadingText}>Unlocking...</Text>
                 <ActivityIndicator size="large" color="lime" />
               </>
             ) : success === true ? (
               <Text style={[styles.feedbackText, { color: 'lime' }]}>
-                Door {scannedDoorId} unlocked!
+                Door Unlocked
               </Text>
             ) : (
               <Text style={[styles.feedbackText, { color: 'red' }]}>
-                Failed to unlock door.
+                {failMessage}
               </Text>
             )}
           </View>
@@ -121,12 +147,31 @@ const styles = StyleSheet.create({
   },
 
   resultBox: {
+    position: 'absolute',
+    bottom: '15%',
     backgroundColor: 'rgba(0,0,0,0.8)',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
     maxWidth: '80%',
   },
+
+  scanBox: {
+    width: 200,
+    height: 200,
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderColor: 'white',
+    borderWidth: 3,
+  },
+  topLeft: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0 },
+  topRight: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
+  bottomLeft: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0 },
+  bottomRight: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0 },
 
   feedbackText: { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
   loadingText: { color: 'white', fontSize: 18, marginBottom: 10, textAlign: 'center' },

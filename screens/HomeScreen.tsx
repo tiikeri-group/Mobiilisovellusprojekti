@@ -26,6 +26,7 @@ const HomeScreen = ({ user }: Props) => {
     Workout: undefined;
     Camera: undefined;
     Profile: undefined;
+    History: undefined;
   };
 
   const navigation = useNavigation<NavigationProp<RootTabParamList>>();
@@ -80,6 +81,10 @@ const HomeScreen = ({ user }: Props) => {
             )}
           </>
         )}
+        <View style={styles.line} />
+        <Pressable style={styles.historyButton} onPress={() => navigation.navigate("History")}>
+          <Text style={styles.historyButtonText}>View History</Text>
+        </Pressable>
         <View style={styles.line} />
         <View>
           <Text style={styles.title}>Information</Text>
@@ -169,6 +174,17 @@ const styles = StyleSheet.create({
   stats: {
     flexDirection: "row",
     fontSize: 24
+  },
+  historyButton: {
+    marginHorizontal: 15,
+    padding: 14,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  historyButtonText: {
+    fontWeight: '600',
+    fontSize: 16,
   },
   line: {
     height: 1,

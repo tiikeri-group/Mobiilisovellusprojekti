@@ -6,6 +6,8 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import WorkoutScreen from '../screens/WorkoutScreen';
 import CameraScreen from '../screens/CameraScreen';
+import HistoryScreen from '../screens/HistoryScreen';
+import WorkoutDetailScreen from '../screens/WorkoutDetailScreen';
 import { AppUser } from "../types/auth";
 
 const Tab = createBottomTabNavigator();
@@ -85,6 +87,18 @@ const Tabs = ({ user, onLogout }: Props) => {
       >
         {() => <CameraScreen user={user} />}
       </Tab.Screen>
+
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
+      />
+
+      <Tab.Screen
+        name="WorkoutDetail"
+        component={WorkoutDetailScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
+      />
 
       <Tab.Screen
         name="Profile"
