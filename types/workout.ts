@@ -1,9 +1,10 @@
 export type WorkoutSet = {
-  weight: number;
-  reps: number;
+  id: string;
+  weight: string;
+  reps: string;
 };
 
-export type WorkoutType = 'cardio' | 'strength';
+export type WorkoutType = "cardio" | "strength";
 
 export type WorkoutHistoryEntry = {
   id: string;
