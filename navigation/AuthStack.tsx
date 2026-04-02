@@ -3,7 +3,6 @@ import { createStackNavigator } from "@react-navigation/stack";
 import AuthChoiceScreen from "../screens/AuthChoiceScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
-import { AppUser } from "../types/auth";
 
 type AuthStackParamList = {
   AuthChoice: undefined;
@@ -13,11 +12,7 @@ type AuthStackParamList = {
 
 const Stack = createStackNavigator<AuthStackParamList>();
 
-type Props = {
-  onAuthSuccess: (token: string, user: AppUser) => void;
-};
-
-const AuthStack = ({ onAuthSuccess }: Props) => {
+const AuthStack = () => {
   return (
     <Stack.Navigator>
       <Stack.Screen
@@ -26,10 +21,10 @@ const AuthStack = ({ onAuthSuccess }: Props) => {
         options={{ title: "Aloitus" }}
       />
       <Stack.Screen name="Login" options={{ title: "Kirjaudu sisään" }}>
-        {() => <LoginScreen onLoginSuccess={onAuthSuccess} />}
+        {() => <LoginScreen />}
       </Stack.Screen>
       <Stack.Screen name="Register" options={{ title: "Luo uusi käyttäjä" }}>
-        {() => <RegisterScreen onRegisterSuccess={onAuthSuccess} />}
+        {() => <RegisterScreen />}
       </Stack.Screen>
     </Stack.Navigator>
   );
