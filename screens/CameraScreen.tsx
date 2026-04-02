@@ -1,17 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { AppUser } from '../types/auth';
-import { getStoredToken } from '../api/authClient';
+import { auth } from '../firebaseConfig';
 
 type BarcodeScanResult = {
   type: string;
   data: string;
-};
-
-type User = {
-  id: string;
 };
 
 type CameraScreenProps = {
@@ -28,8 +24,6 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
   const [failMessage, setFailMessage] = useState<string>('');
 
   const handleScan = async ({ data }: BarcodeScanResult) => {
-
-    // prevent multiple scans
     if (scanned) return;
 
     setScanned(true);
@@ -41,8 +35,8 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
     let unlocked = false;
 
     try {
-      const token = await getStoredToken();
-      const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/doors/unlock`, {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('https://unlockdoor-5hvgj6tc5a-uc.a.run.app', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,8 +45,8 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
         body: JSON.stringify({ door_id: data }),
       });
 
-      const response = await res.json();
-      console.log('Unlock response:', response);
+      const rawText = await res.text();
+      const response = JSON.parse(rawText);
 
       if (response.success) {
         unlocked = true;
@@ -68,16 +62,12 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
     } finally {
       setLoading(false);
       setTimeout(() => {
-        if (unlocked) {
-          navigation.navigate('Home' as never);
-        }
+        if (unlocked) navigation.navigate('Home' as never);
         setScanned(false);
         setScannedDoorId(null);
         setSuccess(null);
       }, 1500);
     }
-
-
   };
 
   if (!permission) return <View />;
@@ -94,24 +84,19 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
 
   return (
     <View style={styles.container}>
-      {/* Camera */}
       <CameraView
         style={styles.camera}
         facing="back"
         onBarcodeScanned={handleScan}
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
       />
-
-      {/* Overlay result */}
       <View style={styles.overlay}>
-        {/* Scan target box */}
         <View style={styles.scanBox}>
           <View style={[styles.corner, styles.topLeft]} />
           <View style={[styles.corner, styles.topRight]} />
           <View style={[styles.corner, styles.bottomLeft]} />
           <View style={[styles.corner, styles.bottomRight]} />
         </View>
-
         {scannedDoorId && (
           <View style={styles.resultBox}>
             {loading ? (
@@ -138,14 +123,12 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   camera: { flex: 1 },
-
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    pointerEvents: 'none', // allow touches to pass to camera
+    pointerEvents: 'none',
   },
-
   resultBox: {
     position: 'absolute',
     bottom: '15%',
@@ -155,7 +138,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     maxWidth: '80%',
   },
-
   scanBox: {
     width: 200,
     height: 200,
@@ -172,10 +154,8 @@ const styles = StyleSheet.create({
   topRight: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
   bottomLeft: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0 },
   bottomRight: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0 },
-
   feedbackText: { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
   loadingText: { color: 'white', fontSize: 18, marginBottom: 10, textAlign: 'center' },
-
   permissionContainer: {
     flex: 1,
     justifyContent: 'center',

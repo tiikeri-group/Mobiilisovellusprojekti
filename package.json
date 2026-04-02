@@ -21,6 +21,7 @@
     "expo-camera": "~17.0.10",
     "expo-status-bar": "~3.0.9",
     "express": "^5.2.1",
+    "firebase": "^12.11.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
     "react": "19.1.0",

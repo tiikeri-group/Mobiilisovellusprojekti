@@ -1,17 +1,7 @@
 export type AppUser = {
-  id: number;
+  id: string;
   first_name: string;
   surname: string;
   email: string;
   subscription_status: boolean;
-};
-
-export type AuthResponse = {
-  message: string;
-  token: string;
-  user: AppUser;
-};
-
-export type MeResponse = {
-  user: AppUser;
 };
