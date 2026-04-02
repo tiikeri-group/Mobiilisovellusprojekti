@@ -1,5 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/HomeScreen';
@@ -18,20 +19,18 @@ type Props = {
 };
 
 const Tabs = ({ user, onLogout }: Props) => {
+  const insets = useSafeAreaInsets();
   return (
-    <Tab.Navigator 
+    <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          position: "absolute",
-          bottom: 25,
-          left: 20,
-          right: 20,
-          backgroundColor: "#ffff",
-          borderRadius: 15,
-          height: 90,
-          ...styles.shadow
+          backgroundColor: "#fff",
+          height: 56 + insets.bottom,
+          borderTopWidth: 1,
+          borderTopColor: "#f0f0f0",
+          paddingBottom: insets.bottom,
         }
       }}
     >
@@ -121,17 +120,5 @@ const Tabs = ({ user, onLogout }: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
-  shadow: {
-    shadowColor: "#7F5DF0",
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.5,
-    elevation: 5,
-  },
-})
 
 export default Tabs;

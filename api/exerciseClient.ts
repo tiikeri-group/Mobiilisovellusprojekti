@@ -1,30 +1,19 @@
-const BASE_URL = 'https://api.api-ninjas.com/v1/exercises'
-const API_KEY = process.env.EXPO_PUBLIC_API_KEY
+import exercisesData from '../exercises.json';
+import { Exercise } from '../types/exercise';
 
+const exercises: Exercise[] = exercisesData as Exercise[];
 
-export const fetchFromApi = async (endpoint:string) => 
-{
-    if (!API_KEY) {
-        console.error("API key is missing");
-        throw new Error ("API key is missing")
-    }
-try {
-    
-    const url = `${BASE_URL}${endpoint}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'X-Api-Key': API_KEY, 
-        'Content-Type': 'application/json', 
-      },
-    });
-        if (!response.ok) {
-            throw new Error(`Api Request failed: ${response.status}`)
-        }
+export async function fetchFromApi(query: string): Promise<Exercise[]> {
+  const { default: exercisesData } = await import('../exercises.json');
+  const params = new URLSearchParams(query.replace('?', ''));
+  const type = params.get('type');
+  const muscle = params.get('muscle');
 
-return await response.json();
-} catch (error){
-    console.error(`Error fetchinc ${endpoint}:`,error)
-    throw error;
-}};
+  return (exercisesData as Exercise[]).filter((ex) => {
+    const matchesType = type ? ex.category === type : true;
+    const matchesMuscle = muscle
+      ? ex.primaryMuscles.includes(muscle) || ex.secondaryMuscles.includes(muscle)
+      : true;
+    return matchesType && matchesMuscle;
+  });
+}
