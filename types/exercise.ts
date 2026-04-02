@@ -1,8 +1,12 @@
 export type { MuscleGroup } from "./muscle";
 
 export interface Exercise {
+  id: string;
   name: string;
-  type: "cardio" | "strength";
-  muscle: string;
-  instructions: string;
+  category: string;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  equipment: string | null;
+  level: string;
+  instructions: string[];
 }
