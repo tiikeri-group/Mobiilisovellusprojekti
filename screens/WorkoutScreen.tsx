@@ -7,42 +7,50 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { fetchFromApi } from "../api/exerciseClient";
 import { Exercise } from "../types/exercise";
 import { MUSCLE_GROUPS, MuscleGroup } from "../constants/muscles";
-import { WorkoutSet, WorkoutHistoryEntry } from "../types/workout";
+import { WorkoutHistoryEntry } from "../types/workout";
 import ActiveWorkoutCard from "../components/ExerciseCard";
 
 export default function WorkoutScreen() {
   const [exercises, setExercise] = useState<Exercise[]>([]);
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES" | "LOGGING">(
-    "OVERVIEW",
-  );
+  const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES">("OVERVIEW");
   const [loading, setLoading] = useState(false);
   const [activeExercises, setActiveExercises] = useState<WorkoutHistoryEntry[]>([]);
 
   const TypeSelect = async (type: "cardio" | "strength") => {
     if (type === "cardio") {
       setLoading(true);
-      const data = await fetchFromApi("?type=cardio");
-      setExercise(data);
-      setLoading(false);
-      setStep("EXERCISES");
+      try {
+        const data = await fetchFromApi("?type=cardio");
+        setExercise(data);
+        setStep("EXERCISES");
+      } catch (error) {
+        Alert.alert("Error", "Failed to fetch cardio exercises");
+      } finally {
+        setLoading(false);
+      }
     } else {
       setStep("MUSCLE");
     }
   };
+
   const handleMuscleSelect = async (muscle: MuscleGroup) => {
     setLoading(true);
-    const data = await fetchFromApi(`?type=strength&muscle=${muscle}`);
-    setExercise(data);
-    setLoading(false);
-    setStep("EXERCISES");
+    try {
+      const data = await fetchFromApi(`?type=strength&muscle=${muscle}`);
+      setExercise(data);
+      setStep("EXERCISES");
+    } catch (error) {
+      Alert.alert("Error", "Failed to fetch exercises");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) return <ActivityIndicator size="large" />;
   const handleAddExerciseToWorkout = (exercise: Exercise) => {
     const newEntry: WorkoutHistoryEntry = {
       id: Date.now().toString(),
@@ -54,9 +62,25 @@ export default function WorkoutScreen() {
       date: new Date().toISOString(),
     };
 
-    setActiveExercises([...activeExercises, newEntry]);
+    setActiveExercises((prev) => [...prev, newEntry]);
     setStep("OVERVIEW");
   };
+
+  const handleFinishWorkout = () => {
+    console.log("Saving Workout Data:", activeExercises);
+    Alert.alert("Success", "Workout saved successfully!", [
+      { text: "OK", onPress: () => setActiveExercises([]) },
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {step === "OVERVIEW" && (
@@ -65,27 +89,48 @@ export default function WorkoutScreen() {
 
           <FlatList
             data={activeExercises}
-            contentContainerStyle={{ paddingBottom: 100 }}
+            contentContainerStyle={{ paddingBottom: 160 }}
             keyExtractor={(item) => item.id}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>Tap the '+' to add an exercise!</Text>
+            }
             renderItem={({ item, index }) => (
               <ActiveWorkoutCard
                 workout={item}
                 onUpdateSet={(setIndex, field, value) => {
-                  const newExercises = [...activeExercises];
-                  newExercises[index].sets[setIndex][field] = value;
-                  setActiveExercises(newExercises);
+                  setActiveExercises((prev) => {
+                    const next = [...prev];
+                    next[index].sets[setIndex][field] = value;
+                    return next;
+                  });
                 }}
                 onAddSet={() => {
-                  const newExercises = [...activeExercises];
-                  newExercises[index].sets.push({
-                    id: Date.now().toString() + "-" + Math.random(),
-                    weight: "",
-                    reps: "",
+                  setActiveExercises((prev) => {
+                    const next = [...prev];
+                    next[index].sets.push({
+                      id: Date.now().toString() + "-" + Math.random(),
+                      weight: "",
+                      reps: "",
+                    });
+                    return next;
                   });
-                  setActiveExercises(newExercises);
+                }}
+                onRemoveSet={(setIndex) => {
+                  setActiveExercises((prev) => {
+                    const next = [...prev];
+                    next[index].sets.splice(setIndex, 1);
+                    if (next[index].sets.length === 0) {
+                      next[index].sets.push({
+                        id: Date.now().toString(),
+                        weight: "",
+                        reps: "",
+                      });
+                    }
+                    return next;
+                  });
                 }}
                 onRemoveExercise={() => {
-                  setActiveExercises(activeExercises.filter((_, i) => i !== index));
+                  setActiveExercises((prev) => prev.filter((_, i) => i !== index));
                 }}
               />
             )}
@@ -96,7 +141,7 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
 
           {activeExercises.length > 0 && (
-            <TouchableOpacity style={styles.footerFinishButton} onPress={() => console.log("Save")}>
+            <TouchableOpacity style={styles.footerFinishButton} onPress={handleFinishWorkout}>
               <Text style={styles.finishText}>Finish Workout</Text>
             </TouchableOpacity>
           )}
@@ -108,72 +153,54 @@ export default function WorkoutScreen() {
           <TouchableOpacity onPress={() => setStep("OVERVIEW")} style={styles.backButton}>
             <Text style={styles.backText}>← Back to Overview</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>What's the plan today?</Text>
+          <Text style={styles.title}>Select Type</Text>
           <TouchableOpacity style={styles.button} onPress={() => TypeSelect("strength")}>
-            <Text>Strength Training</Text>
+            <Text style={styles.buttonText}>Strength Training</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => TypeSelect("cardio")}>
-            <Text>Cardio</Text>
+            <Text style={styles.buttonText}>Cardio</Text>
           </TouchableOpacity>
         </View>
       )}
+
       {step === "MUSCLE" && (
         <View style={{ flex: 1 }}>
           <TouchableOpacity onPress={() => setStep("TYPE")} style={styles.backButton}>
             <Text style={styles.backText}>← Back to Categories</Text>
           </TouchableOpacity>
-
           <FlatList
             data={MUSCLE_GROUPS}
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.button} onPress={() => handleMuscleSelect(item)}>
-                <Text>{item.replace("_", " ").toUpperCase()}</Text>
-              </TouchableOpacity>
-            )}
-          ></FlatList>
-        </View>
-      )}
-      {step === "EXERCISES" && (
-        <View style={{ flex: 1 }}>
-          <TouchableOpacity
-            onPress={() => {
-              const isCardio = exercises.length > 0 && exercises[0].type === "cardio";
-              setStep(isCardio ? "TYPE" : "MUSCLE");
-            }}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>
-              {exercises.length > 0 && exercises[0].type === "cardio"
-                ? "← Back to Categories"
-                : "← Back to Muscles"}
-            </Text>
-          </TouchableOpacity>
-          <FlatList
-            data={exercises}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => handleAddExerciseToWorkout(item)}
-              >
-                <Text style={styles.bold}>{item.name}</Text>
+                <Text style={styles.buttonText}>{item.replace("_", " ").toUpperCase()}</Text>
               </TouchableOpacity>
             )}
           />
         </View>
       )}
 
-      {step === "LOGGING" && selectedExercise && (
+      {step === "EXERCISES" && (
         <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => setStep("EXERCISES")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Exercises</Text>
+          <TouchableOpacity
+            onPress={() => setStep(exercises[0]?.type === "cardio" ? "TYPE" : "MUSCLE")}
+            style={styles.backButton}
+          >
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{selectedExercise.name}</Text>
-          <Text>{selectedExercise.instructions}</Text>
-
-          <TouchableOpacity onPress={() => setStep("TYPE")}>
-            <Text style={styles.backButton}>Start Over</Text>
-          </TouchableOpacity>
+          <FlatList
+            data={exercises}
+            keyExtractor={(item, index) => index.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => handleAddExerciseToWorkout(item)}
+              >
+                <Text style={styles.bold}>{item.name}</Text>
+                <Text style={styles.subText}>{item.muscle.toUpperCase()}</Text>
+              </TouchableOpacity>
+            )}
+          />
         </View>
       )}
     </View>
@@ -181,51 +208,75 @@ export default function WorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff", paddingTop: 60 },
-  center: { flex: 1, justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  button: { padding: 15, backgroundColor: "#f0f0f0", marginVertical: 5, borderRadius: 8 },
-  card: { padding: 15, borderBottomWidth: 1, borderColor: "#eee" },
-  bold: { fontWeight: "bold" },
-
-  backButton: {
-    paddingVertical: 10,
-    marginBottom: 10,
-    zIndex: 10,
+  container: { flex: 1, padding: 20, backgroundColor: "#F9F9F9", paddingTop: 60 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20, color: "#1C1C1E" },
+  emptyText: { textAlign: "center", marginTop: 50, color: "#8E8E93", fontSize: 16 },
+  button: {
+    padding: 18,
+    backgroundColor: "#fff",
+    marginVertical: 6,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
+  buttonText: { fontSize: 16, fontWeight: "600", color: "#1C1C1E" },
+  card: {
+    padding: 18,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 5, // Made slightly thicker
+    borderLeftColor: "#FF6B00", // 🐅 Tiger Orange stripe on the left
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+  },
+  bold: { fontWeight: "bold", fontSize: 16 },
+  subText: { color: "#8E8E93", fontSize: 12, marginTop: 4 },
+  backButton: { paddingVertical: 10, marginBottom: 10 },
   backText: {
-    color: "#007AFF",
+    color: "#FF6B00", // 🐅 Tiger Orange
     fontSize: 18,
     fontWeight: "bold",
   },
   floatingAddButton: {
     position: "absolute",
-    bottom: 120,
-    right: 25,
-    backgroundColor: "#32D74B",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 110,
+    right: 20,
+    backgroundColor: "#FF6B00", // 🐅 Tiger Orange background
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
+    elevation: 8,
+    shadowColor: "#FF6B00", // Glowing orange shadow
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    zIndex: 999,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    zIndex: 1000,
   },
   footerFinishButton: {
-    backgroundColor: "#1C1C1E",
-    padding: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    backgroundColor: "#121212", // 🐅 Deep Black background
+    padding: 18,
+    borderRadius: 16,
+    position: "absolute",
+    bottom: 30,
+    left: 20,
+    right: 20,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333", // Subtle border
   },
   finishText: {
-    color: "#32D74B",
+    color: "#FF6B00", // 🐅 Tiger Orange text
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 18,
+    textTransform: "uppercase", // Makes it look more aggressive/sporty
+    letterSpacing: 1,
   },
 });
