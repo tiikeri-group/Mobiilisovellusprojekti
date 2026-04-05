@@ -30,7 +30,6 @@ const ActiveWorkoutCard = ({
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.exerciseName}>{workout.exerciseName}</Text>
         <TouchableOpacity onPress={onRemoveExercise}>
@@ -38,44 +37,35 @@ const ActiveWorkoutCard = ({
         </TouchableOpacity>
       </View>
 
-      {/* Column Labels */}
       <View style={styles.labelRow}>
         <Text style={[styles.labelText, { width: 35 }]}>{isCardio ? "Rnd" : "Set"}</Text>
-
         <Text style={[styles.labelText, { flex: 1, textAlign: "center" }]}>
           {isCardio ? "Duration (M:SS)" : "Weight (kg)"}
         </Text>
-
-        {/* 🛡️ ULTRA-SAFE CONDITIONAL: No '&&', No Fragments */}
         {!isCardio ? (
           <View style={styles.repsHeaderWrapper}>
             <View style={{ width: 20 }} />
             <Text style={[styles.labelText, { flex: 1, textAlign: "center" }]}>Reps</Text>
           </View>
         ) : null}
-
         <View style={{ width: 30 }} />
       </View>
 
-      {/* Row Mapping */}
       {workout.sets.map((set, index) => (
         <View key={set.id} style={styles.setRow}>
           <Text style={styles.setNumber}>{index + 1}</Text>
-
           <View style={styles.inputBubble}>
             <TextInput
               style={styles.inputText}
               keyboardType="number-pad"
               placeholder={isCardio ? "0:00" : "0"}
               value={set.weight}
-              onChangeText={(val) => {
-                const formatted = isCardio ? formatTimeInput(val) : val;
-                onUpdateSet(index, "weight", formatted);
-              }}
+              onChangeText={(val) =>
+                onUpdateSet(index, "weight", isCardio ? formatTimeInput(val) : val)
+              }
             />
           </View>
 
-          {/* 🛡️ ULTRA-SAFE CONDITIONAL */}
           {!isCardio ? (
             <View style={styles.repsInputWrapper}>
               <Text style={styles.multiplier}>×</Text>
@@ -97,9 +87,8 @@ const ActiveWorkoutCard = ({
         </View>
       ))}
 
-      {/* Add Button */}
       <TouchableOpacity style={styles.addSetButton} onPress={onAddSet}>
-        <Ionicons name="add" size={18} color="#007AFF" />
+        <Ionicons name="add" size={18} color="#FF6B00" />
         <Text style={styles.addSetText}>{isCardio ? "Add Round" : "Add Set"}</Text>
       </TouchableOpacity>
     </View>
@@ -114,13 +103,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 15 },
-  exerciseName: { fontSize: 18, fontWeight: "bold", color: "#1C1C1E" },
+  exerciseName: { fontSize: 18, fontWeight: "bold", color: "#121212" },
   labelRow: { flexDirection: "row", marginBottom: 8, paddingHorizontal: 4, alignItems: "center" },
   labelText: { color: "#8E8E93", fontSize: 12, fontWeight: "600", textTransform: "uppercase" },
   repsHeaderWrapper: { flexDirection: "row", flex: 1 },
@@ -128,15 +113,17 @@ const styles = StyleSheet.create({
   setNumber: { width: 35, fontSize: 16, fontWeight: "600", color: "#8E8E93", textAlign: "center" },
   inputBubble: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9F9F9",
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
   },
   inputText: {
     fontSize: 17,
     fontWeight: "bold",
-    color: "#1C1C1E",
+    color: "#121212",
     width: "100%",
     textAlign: "center",
   },
@@ -150,13 +137,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#F2F2F7",
+    borderTopColor: "#F0F0F0",
   },
-  addSetText: {
-    color: "#FF6B00", 
-    fontWeight: "bold",
-    marginLeft: 4,
-  },
+  addSetText: { color: "#FF6B00", fontWeight: "bold", marginLeft: 4 },
 });
 
 export default ActiveWorkoutCard;
