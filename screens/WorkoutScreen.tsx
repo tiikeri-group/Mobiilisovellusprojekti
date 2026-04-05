@@ -21,96 +21,104 @@ import { auth, db } from "../firebaseConfig";
 
 export default function WorkoutScreen() {
   const [exercises, setExercise] = useState<Exercise[]>([]);
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES" | "LOGGING">("OVERVIEW");
+  const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES">("OVERVIEW");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeExercises, setActiveExercises] = useState<WorkoutHistoryEntry[]>([]);
 
   const TypeSelect = async (type: "cardio" | "strength") => {
-    if (type === "cardio") {
-      setLoading(true);
-      const data = await fetchFromApi("?type=cardio");
+    setLoading(true);
+    try {
+      const data = await fetchFromApi(type === "cardio" ? "?type=cardio" : "?type=strength");
       setExercise(data);
+      setStep(type === "cardio" ? "EXERCISES" : "MUSCLE");
+    } catch (e) {
+      Alert.alert("Error", "Failed to fetch exercises");
+    } finally {
       setLoading(false);
-      setStep("EXERCISES");
-    } else {
-      setStep("MUSCLE");
     }
   };
 
   const handleMuscleSelect = async (muscle: MuscleGroup) => {
     setLoading(true);
-    const data = await fetchFromApi(`?type=strength&muscle=${muscle}`);
-    setExercise(data);
-    setLoading(false);
-    setStep("EXERCISES");
+    try {
+      const data = await fetchFromApi(`?type=strength&muscle=${muscle}`);
+      setExercise(data);
+      setStep("EXERCISES");
+    } catch (e) {
+      Alert.alert("Error", "Failed to fetch exercises");
+    } finally {
+      setLoading(false);
+    }
   };
 
- const handleAddExerciseToWorkout = (exercise: Exercise) => {
-  const newEntry: WorkoutHistoryEntry = {
-    id: Date.now().toString(),
-    exerciseName: exercise.name,
-    type: (exercise.category === "cardio" ? "cardio" : "strength") as WorkoutType,           // changed
-    muscle: exercise.primaryMuscles[0] ?? undefined,
-    sets: [{ id: Date.now().toString() + "-1", weight: "", reps: "" }],
-    durationSeconds: 0,
-    date: new Date().toISOString(),
+  const handleAddExerciseToWorkout = (exercise: Exercise) => {
+    const newEntry: WorkoutHistoryEntry = {
+      id: Date.now().toString(),
+      exerciseName: exercise.name,
+      type: (exercise.category === "cardio" ? "cardio" : "strength") as WorkoutType,
+      muscle: exercise.primaryMuscles[0],
+      sets: [{ id: Date.now().toString() + "-1", weight: "", reps: "" }],
+      durationSeconds: 0,
+      date: new Date().toISOString(),
+    };
+    setActiveExercises([...activeExercises, newEntry]);
+    setStep("OVERVIEW");
   };
-  setActiveExercises([...activeExercises, newEntry]);
-  setStep("OVERVIEW");
-};
 
   const handleFinishWorkout = async () => {
     const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!uid) {
+      Alert.alert("Error", "You must be logged in to save workouts.");
+      return;
+    }
 
-    // check all sets have weight and reps filled in
     const incomplete = activeExercises.some((ex) =>
-      ex.sets.some((s) => !s.weight || !s.reps)
+      ex.sets.some((s) => !s.weight || (ex.type !== "cardio" && !s.reps)),
     );
 
     if (incomplete) {
-      Alert.alert('Incomplete sets', 'Please fill in weight and reps for all sets before finishing.');
+      Alert.alert("Incomplete sets", "Please fill in all fields before finishing.");
       return;
     }
 
     try {
       setSaving(true);
-
       const session = {
         date: new Date().toISOString(),
-        exercises: activeExercises.map((exercise) => ({
-          exerciseName: exercise.exerciseName,
-          type: exercise.type,
-          muscle: exercise.muscle ?? null,
-          sets: exercise.sets,
-          durationSeconds: exercise.durationSeconds,
+        exercises: activeExercises.map((ex) => ({
+          exerciseName: ex.exerciseName,
+          type: ex.type,
+          muscle: ex.muscle ?? null,
+          sets: ex.sets,
+          durationSeconds: ex.durationSeconds,
         })),
       };
 
-      await addDoc(collection(db, 'users', uid, 'workouts'), session);
-
+      await addDoc(collection(db, "users", uid, "workouts"), session);
       setActiveExercises([]);
-      Alert.alert('Workout saved!', 'Your workout has been saved successfully.');
-
+      Alert.alert("Workout saved!", "Your Tiger Group workout is in the books!");
+      setStep("OVERVIEW");
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to save workout. Please try again.');
+      Alert.alert("Error", "Failed to save workout.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <ActivityIndicator size="large" />;
+  if (loading)
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+      </View>
+    );
 
   return (
     <View style={styles.container}>
       {step === "OVERVIEW" && (
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Workout Summary</Text>
-
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }}>
             {activeExercises.map((item, index) => (
               <ActiveWorkoutCard
                 key={item.id}
@@ -127,6 +135,18 @@ export default function WorkoutScreen() {
                     weight: "",
                     reps: "",
                   });
+                  setActiveExercises(newExercises);
+                }}
+                onRemoveSet={(setIndex) => {
+                  const newExercises = [...activeExercises];
+                  newExercises[index].sets.splice(setIndex, 1);
+                  if (newExercises[index].sets.length === 0) {
+                    newExercises[index].sets.push({
+                      id: Date.now().toString(),
+                      weight: "",
+                      reps: "",
+                    });
+                  }
                   setActiveExercises(newExercises);
                 }}
                 onRemoveExercise={() => {
@@ -147,27 +167,26 @@ export default function WorkoutScreen() {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#32D74B" />
+                <ActivityIndicator color="#FF6B00" />
               ) : (
                 <Text style={styles.finishText}>Finish Workout</Text>
               )}
             </TouchableOpacity>
           )}
-          
         </View>
       )}
 
       {step === "TYPE" && (
         <View>
           <TouchableOpacity onPress={() => setStep("OVERVIEW")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Overview</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>What's the plan today?</Text>
+          <Text style={styles.title}>What's the plan?</Text>
           <TouchableOpacity style={styles.button} onPress={() => TypeSelect("strength")}>
-            <Text>Strength Training</Text>
+            <Text style={styles.buttonText}>Strength Training</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={() => TypeSelect("cardio")}>
-            <Text>Cardio</Text>
+            <Text style={styles.buttonText}>Cardio</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -175,14 +194,14 @@ export default function WorkoutScreen() {
       {step === "MUSCLE" && (
         <View style={{ flex: 1 }}>
           <TouchableOpacity onPress={() => setStep("TYPE")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Categories</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <FlatList
             data={MUSCLE_GROUPS}
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.button} onPress={() => handleMuscleSelect(item)}>
-                <Text>{item.replace("_", " ").toUpperCase()}</Text>
+                <Text style={styles.buttonText}>{item.replace("_", " ").toUpperCase()}</Text>
               </TouchableOpacity>
             )}
           />
@@ -192,39 +211,23 @@ export default function WorkoutScreen() {
       {step === "EXERCISES" && (
         <View style={{ flex: 1 }}>
           <TouchableOpacity
-            onPress={() => {
-              const isCardio = exercises.length > 0 && exercises[0].category === "cardio";
-              setStep(isCardio ? "TYPE" : "MUSCLE");
-            }}
+            onPress={() => setStep(exercises[0]?.category === "cardio" ? "TYPE" : "MUSCLE")}
             style={styles.backButton}
           >
-            <Text style={styles.backText}>
-              {exercises.length > 0 && exercises[0].category === "cardio"
-                ? "← Back to Categories"
-                : "← Back to Muscles"}
-            </Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <FlatList
             data={exercises}
+            keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.card} onPress={() => handleAddExerciseToWorkout(item)}>
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => handleAddExerciseToWorkout(item)}
+              >
                 <Text style={styles.bold}>{item.name}</Text>
               </TouchableOpacity>
             )}
           />
-        </View>
-      )}
-
-      {step === "LOGGING" && selectedExercise && (
-        <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => setStep("EXERCISES")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Exercises</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>{selectedExercise.name}</Text>
-          <Text>{selectedExercise.instructions}</Text>
-          <TouchableOpacity onPress={() => setStep("TYPE")}>
-            <Text style={styles.backButton}>Start Over</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -232,50 +235,49 @@ export default function WorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff", paddingTop: 60 },
-  center: { flex: 1, justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  button: { padding: 15, backgroundColor: "#f0f0f0", marginVertical: 5, borderRadius: 8 },
-  card: { padding: 15, borderBottomWidth: 1, borderColor: "#eee" },
-  bold: { fontWeight: "bold" },
-  backButton: {
-    paddingVertical: 10,
+  container: { flex: 1, padding: 20, backgroundColor: "#F9F9F9", paddingTop: 60 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20, color: "#121212" },
+  button: {
+    padding: 18,
+    backgroundColor: "#fff",
+    marginVertical: 6,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  buttonText: { fontSize: 16, fontWeight: "600", color: "#121212" },
+  card: {
+    padding: 18,
+    backgroundColor: "#fff",
+    borderRadius: 12,
     marginBottom: 10,
-    zIndex: 10,
+    borderLeftWidth: 5,
+    borderLeftColor: "#FF6B00",
   },
-  backText: {
-    color: "#007AFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  bold: { fontWeight: "bold", fontSize: 16 },
+  backButton: { paddingVertical: 10, marginBottom: 10 },
+  backText: { color: "#FF6B00", fontSize: 18, fontWeight: "bold" },
   floatingAddButton: {
     position: "absolute",
-    bottom: 90,
-    right: 25,
-    backgroundColor: "#32D74B",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 10,
+    right: 20,
+    backgroundColor: "#FF6B00",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    zIndex: 999,
+    elevation: 8,
   },
   footerFinishButton: {
-    backgroundColor: "#1C1C1E",
-    padding: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    backgroundColor: "#121212",
+    padding: 18,
+    borderRadius: 16,
+    position: "absolute",
+    bottom: 30,
+    left: 20,
+    right: 20,
     alignItems: "center",
   },
-  finishText: {
-    color: "#32D74B",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  finishText: { color: "#FF6B00", fontWeight: "bold", fontSize: 18, textTransform: "uppercase" },
 });
