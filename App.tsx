@@ -4,53 +4,30 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Tabs from "./navigation/Tabs";
 import AuthStack from "./navigation/AuthStack";
+import { auth, db } from "./firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { AppUser } from "./types/auth";
-import {
-  fetchCurrentUser,
-  getStoredToken,
-  removeStoredToken,
-} from "./api/authClient";
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const restoreSession = async () => {
-      try {
-        const storedToken = await getStoredToken();
-
-        if (!storedToken) {
-          setLoadingAuth(false);
-          return;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const docSnap = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (docSnap.exists()) {
+          setUser(docSnap.data() as AppUser);
         }
-
-        const data = await fetchCurrentUser(storedToken);
-        setToken(storedToken);
-        setUser(data.user);
-      } catch (error) {
-        await removeStoredToken();
-        setToken(null);
+      } else {
         setUser(null);
-      } finally {
-        setLoadingAuth(false);
       }
-    };
+      setLoadingAuth(false);
+    });
 
-    restoreSession();
+    return unsubscribe;
   }, []);
-
-  const handleAuthSuccess = (newToken: string, newUser: AppUser) => {
-    setToken(newToken);
-    setUser(newUser);
-  };
-
-  const handleLogout = async () => {
-    await removeStoredToken();
-    setToken(null);
-    setUser(null);
-  };
 
   if (loadingAuth) {
     return (
@@ -63,10 +40,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        {token && user ? (
-          <Tabs user={user} onLogout={handleLogout} />
+        {user ? (
+          <Tabs user={user} onLogout={() => auth.signOut()} />
         ) : (
-          <AuthStack onAuthSuccess={handleAuthSuccess} />
+          <AuthStack />
         )}
       </NavigationContainer>
     </SafeAreaProvider>

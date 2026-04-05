@@ -1,14 +1,17 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, } from "react-native";
-import { loginUser, saveToken } from "../api/authClient";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebaseConfig";
 import { validateEmail } from "../constants/validation";
-import { AppUser } from "../types/auth";
 
-type Props = {
-  onLoginSuccess: (token: string, user: AppUser) => void;
-};
-
-const LoginScreen = ({ onLoginSuccess }: Props) => {
+const LoginScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -30,11 +33,17 @@ const LoginScreen = ({ onLoginSuccess }: Props) => {
 
     try {
       setLoading(true);
-      const data = await loginUser(email, password);
-      await saveToken(data.token);
-      onLoginSuccess(data.token, data.user);
+      await signInWithEmailAndPassword(auth, email, password);
+      // no need to do anything here — onAuthStateChanged in App.tsx
+      // detects the login and switches to Tabs automatically
     } catch (error: any) {
-      setErrorText(error.message || "Kirjautuminen epäonnistui");
+      if (error.code === 'auth/invalid-credential') {
+        setErrorText("Väärä sähköposti tai salasana");
+      } else if (error.code === 'auth/too-many-requests') {
+        setErrorText("Liian monta yritystä. Yritä myöhemmin uudelleen");
+      } else {
+        setErrorText("Kirjautuminen epäonnistui");
+      }
     } finally {
       setLoading(false);
     }
@@ -43,7 +52,6 @@ const LoginScreen = ({ onLoginSuccess }: Props) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Kirjaudu sisään</Text>
-
       <TextInput
         style={styles.input}
         placeholder="Sähköposti"
@@ -52,7 +60,6 @@ const LoginScreen = ({ onLoginSuccess }: Props) => {
         value={email}
         onChangeText={setEmail}
       />
-
       <TextInput
         style={styles.input}
         placeholder="Salasana"
@@ -60,9 +67,7 @@ const LoginScreen = ({ onLoginSuccess }: Props) => {
         value={password}
         onChangeText={setPassword}
       />
-
       {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
-
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         {loading ? (
           <ActivityIndicator />

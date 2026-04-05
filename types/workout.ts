@@ -15,3 +15,17 @@ export type WorkoutHistoryEntry = {
   durationSeconds: number;
   date: string; // ISO string
 };
+
+export type WorkoutExercise = {
+  exerciseName: string;
+  type: WorkoutType;
+  muscle?: string;
+  sets: WorkoutSet[];
+  durationSeconds: number;
+};
+
+export type WorkoutSession = {
+  id: string;
+  date: string;
+  exercises: WorkoutExercise[];
+};

@@ -1,12 +1,16 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { registerUser, saveToken } from "../api/authClient";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "../firebaseConfig";
 import { validateEmail, validatePassword } from "../constants/validation";
-import { AppUser } from "../types/auth";
-
-type Props = {
-  onRegisterSuccess: (token: string, user: AppUser) => void;
-};
 
 const PasswordCriteria = ({ password }: { password: string }) => {
   if (!password) return null;
@@ -28,8 +32,9 @@ const PasswordCriteria = ({ password }: { password: string }) => {
   );
 };
 
-const RegisterScreen = ({ onRegisterSuccess }: Props) => {
-  const [name, setName] = useState("");
+const RegisterScreen = () => {
+  const [firstName, setFirstName] = useState("");
+  const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,7 +44,7 @@ const RegisterScreen = ({ onRegisterSuccess }: Props) => {
   const handleRegister = async () => {
     setErrorText("");
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (!firstName || !surname || !email || !password || !confirmPassword) {
       setErrorText("Täytä kaikki kentät");
       return;
     }
@@ -63,11 +68,30 @@ const RegisterScreen = ({ onRegisterSuccess }: Props) => {
 
     try {
       setLoading(true);
-      const data = await registerUser(name, email, password, confirmPassword);
-      await saveToken(data.token);
-      onRegisterSuccess(data.token, data.user);
+
+      // 1. Create user in Firebase Auth
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+
+      // 2. Save profile to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        id: user.uid,
+        first_name: firstName,
+        surname: surname,
+        email: user.email,
+        subscription_status: false,
+        createdAt: new Date(),
+      });
+
+      // onAuthStateChanged in App.tsx handles navigation automatically
+
     } catch (error: any) {
-      setErrorText(error.message || "Rekisteröinti epäonnistui");
+      if (error.code === "auth/email-already-in-use") {
+        setErrorText("Sähköposti on jo käytössä");
+      } else if (error.code === "auth/weak-password") {
+        setErrorText("Salasana on liian heikko");
+      } else {
+        setErrorText("Rekisteröinti epäonnistui");
+      }
     } finally {
       setLoading(false);
     }
@@ -79,9 +103,16 @@ const RegisterScreen = ({ onRegisterSuccess }: Props) => {
 
       <TextInput
         style={styles.input}
-        placeholder="Nimi"
-        value={name}
-        onChangeText={setName}
+        placeholder="Etunimi"
+        value={firstName}
+        onChangeText={setFirstName}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Sukunimi"
+        value={surname}
+        onChangeText={setSurname}
       />
 
       <TextInput
