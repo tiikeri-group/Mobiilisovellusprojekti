@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { AppUser } from '../types/auth';
+import { WorkoutSession } from "../types/workout";
+import { useEffect } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebaseConfig";
+import WorkoutCard from '../components/WorkoutCard'
 
 type Props = {
   user: AppUser;
@@ -10,16 +15,23 @@ type Props = {
 const HomeScreen = ({ user }: Props) => {
 
   const [open, setOpen] = useState<boolean>(false);
-  const [workout, setworkout] = useState<string>();
+  const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
 
-  const historyData = [
-    { id: '1', time: '00:30:45', workout: 'Pushups', date: '27.03.2026' },
-    { id: '2', time: '00:45:10', workout: 'Squats', date: '26.03.2026' },
-    { id: '3', time: '01:00:00', workout: 'Running', date: '25.03.2026' },
-    { id: '4', time: '00:20:15', workout: 'Plank', date: '24.03.2026' },
-    { id: '5', time: '00:35:00', workout: 'Burpees', date: '23.03.2026' },
-    { id: '6', time: '00:35:00', workout: 'Burpees', date: '23.03.2026' },
-  ];
+  useEffect(() => {
+  const fetchWorkouts = async () => {
+    const querySnapshot = await getDocs(collection(db, "users", user.id, "workouts"));
+
+    const data: WorkoutSession[] = [];
+
+    querySnapshot.forEach((doc) => {
+      data.push({ id: doc.id, ...(doc.data() as any) });
+    });
+
+    setWorkouts(data);
+  };
+
+  fetchWorkouts();
+}, []);
 
   type RootTabParamList = {
     Home: undefined;
@@ -30,6 +42,23 @@ const HomeScreen = ({ user }: Props) => {
   };
 
   const navigation = useNavigation<NavigationProp<RootTabParamList>>();
+
+  const calculateWorkoutTime = (workouts: WorkoutSession[]) => {
+  const totalSeconds = workouts.reduce((total, session) => {
+    return total + session.exercises.reduce(
+      (sum, ex) => sum + (ex.durationSeconds || 0),
+      0
+    );
+  }, 0);
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 3600 % 60;
+
+  return `${hours} : ${minutes} : ${seconds}`;
+};
+
+const totalTime = calculateWorkoutTime(workouts);
 
   return (
     <>
@@ -46,65 +75,41 @@ const HomeScreen = ({ user }: Props) => {
             <View style={{ flex: 1 }}>
               <Text style={{ textAlign: "center" }}>hr : min : sec</Text>
               <View style={styles.line} />
-              {!historyData ? (<Text style={{ textAlign: "center" }}>-</Text>
+              {!workouts.length ? (<Text style={{ textAlign: "center" }}>-</Text>
               ) : (
-                <Text style={{ textAlign: "center" }}>Time</Text>)}
+                <Text style={{ textAlign: "center" }}>{totalTime}</Text>)}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ textAlign: "center" }}>Total workouts</Text>
               <View style={styles.line} />
-              {!historyData ? (<Text style={{ textAlign: "center" }}>-</Text>
+              {!workouts.length ? (<Text style={{ textAlign: "center" }}>-</Text>
               ) : (
-                <Text style={{ textAlign: "center" }}>{historyData.length}</Text>)}
+                <Text style={{ textAlign: "center" }}>{workouts.length}</Text>)}
             </View>
           </View>
           <Text style={styles.title}>Last workout</Text>
         </View>
         <View style={styles.line} />
-        {historyData.length === 0 ? (
-          <Text style={styles.modalText}>You don't have any workout</Text>
-        ) : (
-          <>
-            {historyData.slice(0, 5).map((data) => (
-              <Pressable key={data.id} onPress={() => setOpen(true)}>
-                <View style={styles.card}>
-                  <Text style={{ flex: 1, textAlign: 'center' }}>{data.time}</Text>
-                  <Text style={{ flex: 1, textAlign: 'center' }}>{data.workout}</Text>
-                  <Text style={{ flex: 1, textAlign: 'center' }}>{data.date}</Text>
-                </View>
-              </Pressable>
-            ))}
-            {historyData.length > 5 && (
-              <Pressable onPress={() => navigation.navigate("Home")}>
-                <Text style={{ textAlign: 'center', marginTop: 10 }}>More</Text>
-              </Pressable>
-            )}
-          </>
-        )}
-        <View style={styles.line} />
+        {workouts.length === 0 ? (
+  <Text style={styles.modalText}>You don't have any workout</Text>
+) : (
+  <View>
+    {workouts.slice(0, 5).map((item) => (
+      <WorkoutCard
+        key={item.id}
+        workout={item}
+        onPress={() => (navigation as any).navigate("WorkoutDetail", { workout: item })}
+        onDelete={() => {}}
+      />
+    ))}
+  </View>
+)}
+<View style={styles.line} />
         <Pressable style={styles.historyButton} onPress={() => navigation.navigate("History")}>
           <Text style={styles.historyButtonText}>View History</Text>
         </Pressable>
-        <View style={styles.line} />
-        <View>
-          <Text style={styles.title}>Information</Text>
-          <Text style={{ textAlign: "center" }}>Visiting hours 8-18</Text>
-        </View>
+<View style={styles.line} />
       </ScrollView>
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.title}>Your last workout</Text>
-            <Pressable onPress={() => setOpen(false)} style={styles.button}>
-              <Text style={styles.textButton}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 };
