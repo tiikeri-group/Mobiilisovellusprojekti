@@ -13,8 +13,7 @@ import {
 import { fetchFromApi } from "../api/exerciseClient";
 import { Exercise } from "../types/exercise";
 import { MUSCLE_GROUPS, MuscleGroup } from "../constants/muscles";
-import { WorkoutHistoryEntry } from "../types/workout";
-import { WorkoutSet, WorkoutType, WorkoutHistoryEntry } from "../types/workout";
+import { WorkoutType, WorkoutHistoryEntry } from "../types/workout";
 import ActiveWorkoutCard from "../components/ExerciseCard";
 
 import { collection, addDoc } from "firebase/firestore";
@@ -23,26 +22,20 @@ import { auth, db } from "../firebaseConfig";
 export default function WorkoutScreen() {
   const [exercises, setExercise] = useState<Exercise[]>([]);
   const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES">("OVERVIEW");
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES" | "LOGGING">("OVERVIEW");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeExercises, setActiveExercises] = useState<WorkoutHistoryEntry[]>([]);
 
   const TypeSelect = async (type: "cardio" | "strength") => {
-    if (type === "cardio") {
-      setLoading(true);
-      try {
-        const data = await fetchFromApi("?type=cardio");
-        setExercise(data);
-        setStep("EXERCISES");
-      } catch (error) {
-        Alert.alert("Error", "Failed to fetch cardio exercises");
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      setStep("MUSCLE");
+    setLoading(true);
+    try {
+      const data = await fetchFromApi(type === "cardio" ? "?type=cardio" : "?type=strength");
+      setExercise(data);
+      setStep(type === "cardio" ? "EXERCISES" : "MUSCLE");
+    } catch (e) {
+      Alert.alert("Error", "Failed to fetch exercises");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,7 +45,7 @@ export default function WorkoutScreen() {
       const data = await fetchFromApi(`?type=strength&muscle=${muscle}`);
       setExercise(data);
       setStep("EXERCISES");
-    } catch (error) {
+    } catch (e) {
       Alert.alert("Error", "Failed to fetch exercises");
     } finally {
       setLoading(false);
@@ -63,103 +56,69 @@ export default function WorkoutScreen() {
     const newEntry: WorkoutHistoryEntry = {
       id: Date.now().toString(),
       exerciseName: exercise.name,
-      type: exercise.type,
-      muscle: exercise.muscle,
+      type: (exercise.category === "cardio" ? "cardio" : "strength") as WorkoutType,
+      muscle: exercise.primaryMuscles[0],
       sets: [{ id: Date.now().toString() + "-1", weight: "", reps: "" }],
       durationSeconds: 0,
       date: new Date().toISOString(),
     };
-
-    setActiveExercises((prev) => [...prev, newEntry]);
+    setActiveExercises([...activeExercises, newEntry]);
     setStep("OVERVIEW");
   };
 
-  const handleFinishWorkout = () => {
-    console.log("Saving Workout Data:", activeExercises);
-    Alert.alert("Success", "Workout saved successfully!", [
-      { text: "OK", onPress: () => setActiveExercises([]) },
-    ]);
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF6B00" />
-      </View>
-    );
-  }
- const handleAddExerciseToWorkout = (exercise: Exercise) => {
-  const newEntry: WorkoutHistoryEntry = {
-    id: Date.now().toString(),
-    exerciseName: exercise.name,
-    type: (exercise.category === "cardio" ? "cardio" : "strength") as WorkoutType,           // changed
-    muscle: exercise.primaryMuscles[0] ?? undefined,
-    sets: [{ id: Date.now().toString() + "-1", weight: "", reps: "" }],
-    durationSeconds: 0,
-    date: new Date().toISOString(),
-  };
-  setActiveExercises([...activeExercises, newEntry]);
-  setStep("OVERVIEW");
-};
-
   const handleFinishWorkout = async () => {
     const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!uid) {
+      Alert.alert("Error", "You must be logged in to save workouts.");
+      return;
+    }
 
-    // check all sets have weight and reps filled in
     const incomplete = activeExercises.some((ex) =>
-      ex.sets.some((s) => !s.weight || !s.reps)
+      ex.sets.some((s) => !s.weight || (ex.type !== "cardio" && !s.reps)),
     );
 
     if (incomplete) {
-      Alert.alert('Incomplete sets', 'Please fill in weight and reps for all sets before finishing.');
+      Alert.alert("Incomplete sets", "Please fill in all fields before finishing.");
       return;
     }
 
     try {
       setSaving(true);
-
       const session = {
         date: new Date().toISOString(),
-        exercises: activeExercises.map((exercise) => ({
-          exerciseName: exercise.exerciseName,
-          type: exercise.type,
-          muscle: exercise.muscle ?? null,
-          sets: exercise.sets,
-          durationSeconds: exercise.durationSeconds,
+        exercises: activeExercises.map((ex) => ({
+          exerciseName: ex.exerciseName,
+          type: ex.type,
+          muscle: ex.muscle ?? null,
+          sets: ex.sets,
+          durationSeconds: ex.durationSeconds,
         })),
       };
 
-      await addDoc(collection(db, 'users', uid, 'workouts'), session);
-
+      await addDoc(collection(db, "users", uid, "workouts"), session);
       setActiveExercises([]);
-      Alert.alert('Workout saved!', 'Your workout has been saved successfully.');
-
+      Alert.alert("Workout saved!", "Your Tiger Group workout is in the books!");
+      setStep("OVERVIEW");
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to save workout. Please try again.');
+      Alert.alert("Error", "Failed to save workout.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <ActivityIndicator size="large" />;
+  if (loading)
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+      </View>
+    );
 
   return (
     <View style={styles.container}>
       {step === "OVERVIEW" && (
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Workout Summary</Text>
-
-          <FlatList
-            data={activeExercises}
-            contentContainerStyle={{ paddingBottom: 160 }}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>Tap the '+' to add an exercise!</Text>
-            }
-            renderItem={({ item, index }) => (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 150 }}>
             {activeExercises.map((item, index) => (
               <ActiveWorkoutCard
                 key={item.id}
@@ -208,30 +167,27 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
 
           {activeExercises.length > 0 && (
-            <TouchableOpacity style={styles.footerFinishButton} onPress={handleFinishWorkout}>
-              <Text style={styles.finishText}>Finish Workout</Text>
             <TouchableOpacity
               style={styles.footerFinishButton}
               onPress={handleFinishWorkout}
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#32D74B" />
+                <ActivityIndicator color="#FF6B00" />
               ) : (
                 <Text style={styles.finishText}>Finish Workout</Text>
               )}
             </TouchableOpacity>
           )}
-          
         </View>
       )}
 
       {step === "TYPE" && (
         <View>
           <TouchableOpacity onPress={() => setStep("OVERVIEW")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Overview</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Select Type</Text>
+          <Text style={styles.title}>What's the plan?</Text>
           <TouchableOpacity style={styles.button} onPress={() => TypeSelect("strength")}>
             <Text style={styles.buttonText}>Strength Training</Text>
           </TouchableOpacity>
@@ -244,7 +200,7 @@ export default function WorkoutScreen() {
       {step === "MUSCLE" && (
         <View style={{ flex: 1 }}>
           <TouchableOpacity onPress={() => setStep("TYPE")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Categories</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <FlatList
             data={MUSCLE_GROUPS}
@@ -261,45 +217,23 @@ export default function WorkoutScreen() {
       {step === "EXERCISES" && (
         <View style={{ flex: 1 }}>
           <TouchableOpacity
-            onPress={() => setStep(exercises[0]?.type === "cardio" ? "TYPE" : "MUSCLE")}
+            onPress={() => setStep(exercises[0]?.category === "cardio" ? "TYPE" : "MUSCLE")}
             style={styles.backButton}
           >
             <Text style={styles.backText}>← Back</Text>
-            onPress={() => {
-              const isCardio = exercises.length > 0 && exercises[0].category === "cardio";
-              setStep(isCardio ? "TYPE" : "MUSCLE");
-            }}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>
-              {exercises.length > 0 && exercises[0].category === "cardio"
-                ? "← Back to Categories"
-                : "← Back to Muscles"}
-            </Text>
           </TouchableOpacity>
           <FlatList
             data={exercises}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.card} onPress={() => handleAddExerciseToWorkout(item)}>
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => handleAddExerciseToWorkout(item)}
+              >
                 <Text style={styles.bold}>{item.name}</Text>
-                <Text style={styles.subText}>{item.muscle.toUpperCase()}</Text>
               </TouchableOpacity>
             )}
           />
-        </View>
-      )}
-
-      {step === "LOGGING" && selectedExercise && (
-        <View style={{ flex: 1 }}>
-          <TouchableOpacity onPress={() => setStep("EXERCISES")} style={styles.backButton}>
-            <Text style={styles.backText}>← Back to Exercises</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>{selectedExercise.name}</Text>
-          <Text>{selectedExercise.instructions}</Text>
-          <TouchableOpacity onPress={() => setStep("TYPE")}>
-            <Text style={styles.backButton}>Start Over</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -309,72 +243,41 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#F9F9F9", paddingTop: 60 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20, color: "#1C1C1E" },
-  emptyText: { textAlign: "center", marginTop: 50, color: "#8E8E93", fontSize: 16 },
+  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20, color: "#121212" },
   button: {
     padding: 18,
     backgroundColor: "#fff",
     marginVertical: 6,
     borderRadius: 12,
     elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
   },
-  buttonText: { fontSize: 16, fontWeight: "600", color: "#1C1C1E" },
+  buttonText: { fontSize: 16, fontWeight: "600", color: "#121212" },
   card: {
     padding: 18,
     backgroundColor: "#fff",
     borderRadius: 12,
-  container: { flex: 1, padding: 20, backgroundColor: "#fff", paddingTop: 60 },
-  center: { flex: 1, justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
-  button: { padding: 15, backgroundColor: "#f0f0f0", marginVertical: 5, borderRadius: 8 },
-  card: { padding: 15, borderBottomWidth: 1, borderColor: "#eee" },
-  bold: { fontWeight: "bold" },
-  backButton: {
-    paddingVertical: 10,
     marginBottom: 10,
-    borderLeftWidth: 5, // Made slightly thicker
-    borderLeftColor: "#FF6B00", // 🐅 Tiger Orange stripe on the left
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    borderLeftWidth: 5,
+    borderLeftColor: "#FF6B00",
   },
   bold: { fontWeight: "bold", fontSize: 16 },
-  subText: { color: "#8E8E93", fontSize: 12, marginTop: 4 },
   backButton: { paddingVertical: 10, marginBottom: 10 },
-  backText: {
-    color: "#FF6B00", // 🐅 Tiger Orange
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  backText: { color: "#FF6B00", fontSize: 18, fontWeight: "bold" },
   floatingAddButton: {
     position: "absolute",
-    bottom: 110,
+    bottom: 10,
     right: 20,
-    backgroundColor: "#FF6B00", // 🐅 Tiger Orange background
+    backgroundColor: "#FF6B00",
     width: 64,
     height: 64,
     borderRadius: 32,
-    bottom: 90,
-    right: 25,
-    backgroundColor: "#32D74B",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
     elevation: 8,
-    shadowColor: "#FF6B00", // Glowing orange shadow
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    zIndex: 1000,
+    zIndex: 999,
   },
   footerFinishButton: {
-    backgroundColor: "#121212", // 🐅 Deep Black background
+    backgroundColor: "#121212",
     padding: 18,
     borderRadius: 16,
     position: "absolute",
@@ -383,13 +286,7 @@ const styles = StyleSheet.create({
     right: 20,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#333", // Subtle border
+    borderColor: "#333",
   },
-  finishText: {
-    color: "#FF6B00", // 🐅 Tiger Orange text
-    fontWeight: "bold",
-    fontSize: 18,
-    textTransform: "uppercase", // Makes it look more aggressive/sporty
-    letterSpacing: 1,
-  },
+  finishText: { color: "#FF6B00", fontWeight: "bold", fontSize: 18, textTransform: "uppercase" },
 });
