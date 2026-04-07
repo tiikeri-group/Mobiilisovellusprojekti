@@ -117,8 +117,25 @@ export default function WorkoutScreen() {
     <View style={styles.container}>
       {step === "OVERVIEW" && (
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Workout Summary</Text>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 150 }}>
+          {/* New Header Row */}
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Summary</Text>
+            {activeExercises.length > 0 && (
+              <TouchableOpacity
+                style={styles.headerFinishButton}
+                onPress={handleFinishWorkout}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FF6B00" />
+                ) : (
+                  <Text style={styles.headerFinishText}>Finish</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
             {activeExercises.map((item, index) => (
               <ActiveWorkoutCard
                 key={item.id}
@@ -165,20 +182,6 @@ export default function WorkoutScreen() {
           <TouchableOpacity style={styles.floatingAddButton} onPress={() => setStep("TYPE")}>
             <Ionicons name="add" size={32} color="white" />
           </TouchableOpacity>
-
-          {activeExercises.length > 0 && (
-            <TouchableOpacity
-              style={styles.footerFinishButton}
-              onPress={handleFinishWorkout}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FF6B00" />
-              ) : (
-                <Text style={styles.finishText}>Finish Workout</Text>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
       )}
 
@@ -243,7 +246,29 @@ export default function WorkoutScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#F9F9F9", paddingTop: 60 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 28, fontWeight: "bold", marginBottom: 20, color: "#121212" },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  title: { fontSize: 28, fontWeight: "bold", color: "#121212" },
+  headerFinishButton: {
+    backgroundColor: "#121212",
+    paddingHorizontal: 16,
+    width: 120,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#FF6B00",
+  },
+  headerFinishText: {
+    color: "#FF6B00",
+    fontWeight: "bold",
+    fontSize: 16,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
   button: {
     padding: 18,
     backgroundColor: "#fff",
@@ -265,7 +290,7 @@ const styles = StyleSheet.create({
   backText: { color: "#FF6B00", fontSize: 18, fontWeight: "bold" },
   floatingAddButton: {
     position: "absolute",
-    bottom: 10,
+    bottom: 30, // Moved back down since finish button is gone from bottom
     right: 20,
     backgroundColor: "#FF6B00",
     width: 64,
@@ -276,17 +301,4 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 999,
   },
-  footerFinishButton: {
-    backgroundColor: "#121212",
-    padding: 18,
-    borderRadius: 16,
-    position: "absolute",
-    bottom: 30,
-    left: 20,
-    right: 20,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#333",
-  },
-  finishText: { color: "#FF6B00", fontWeight: "bold", fontSize: 18, textTransform: "uppercase" },
 });
