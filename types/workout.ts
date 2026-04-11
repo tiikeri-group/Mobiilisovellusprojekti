@@ -27,5 +27,6 @@ export type WorkoutExercise = {
 export type WorkoutSession = {
   id: string;
   date: string;
+  durationSeconds: number;
   exercises: WorkoutExercise[];
 };
