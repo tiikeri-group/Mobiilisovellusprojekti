@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   View,
@@ -14,17 +15,35 @@ import { fetchFromApi } from "../api/exerciseClient";
 import { Exercise } from "../types/exercise";
 import { MUSCLE_GROUPS, MuscleGroup } from "../constants/muscles";
 import { WorkoutType, WorkoutHistoryEntry } from "../types/workout";
+import { formatDuration } from "../utils/formatWorkout";
 import ActiveWorkoutCard from "../components/ExerciseCard";
 
 import { collection, addDoc } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 
 export default function WorkoutScreen() {
+  const insets = useSafeAreaInsets();
   const [exercises, setExercise] = useState<Exercise[]>([]);
   const [step, setStep] = useState<"OVERVIEW" | "TYPE" | "MUSCLE" | "EXERCISES">("OVERVIEW");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeExercises, setActiveExercises] = useState<WorkoutHistoryEntry[]>([]);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (activeExercises.length > 0 && !timerRef.current) {
+      timerRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    }
+    if (activeExercises.length === 0 && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+      setElapsedSeconds(0);
+    }
+  }, [activeExercises.length]);
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
 
   const TypeSelect = async (type: "cardio" | "strength") => {
     setLoading(true);
@@ -86,6 +105,7 @@ export default function WorkoutScreen() {
       setSaving(true);
       const session = {
         date: new Date().toISOString(),
+        durationSeconds: elapsedSeconds,
         exercises: activeExercises.map((ex) => ({
           exerciseName: ex.exerciseName,
           type: ex.type,
@@ -114,12 +134,17 @@ export default function WorkoutScreen() {
     );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       {step === "OVERVIEW" && (
         <View style={{ flex: 1 }}>
           {/* New Header Row */}
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Summary</Text>
+            <View>
+              <Text style={styles.title}>Summary</Text>
+              {activeExercises.length > 0 && (
+                <Text style={styles.timer}>{formatDuration(elapsedSeconds)}</Text>
+              )}
+            </View>
             {activeExercises.length > 0 && (
               <TouchableOpacity
                 style={styles.headerFinishButton}
@@ -244,7 +269,7 @@ export default function WorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#F9F9F9", paddingTop: 60 },
+  container: { flex: 1, padding: 20, backgroundColor: "#F9F9F9" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   headerRow: {
     flexDirection: "row",
@@ -253,6 +278,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: { fontSize: 28, fontWeight: "bold", color: "#121212" },
+  timer: { fontSize: 22, color: "#FF6B00", fontWeight: "700", marginTop: 2 },
   headerFinishButton: {
     backgroundColor: "#121212",
     paddingHorizontal: 16,

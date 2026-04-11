@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { WorkoutSession } from "../types/workout";
 import WorkoutCard from "../components/WorkoutCard";
@@ -17,6 +18,7 @@ import { auth, db } from "../firebaseConfig";
 
 const HistoryScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +87,7 @@ const HistoryScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color="#121212" />
         </Pressable>
@@ -125,7 +127,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9F9F9" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    paddingTop: 60,
+    paddingTop: 0,
     paddingHorizontal: 20,
     paddingBottom: 20,
     backgroundColor: "#fff",
