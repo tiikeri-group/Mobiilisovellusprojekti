@@ -21,6 +21,35 @@ const HistoryScreen = () => {
   const insets = useSafeAreaInsets();
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectionMode = selectedIds.size > 0;
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedIds(new Set(workouts.map((w) => w.id)));
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleDeleteSelected = () => {
+    Alert.alert('Delete Workouts', `Delete ${selectedIds.size} workout(s)?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          const uid = auth.currentUser?.uid;
+          if (!uid) return;
+          await Promise.all([...selectedIds].map((id) => deleteDoc(doc(db, 'users', uid, 'workouts', id))));
+          setWorkouts((prev) => prev.filter((w) => !selectedIds.has(w.id)));
+          clearSelection();
+        },
+      },
+    ]);
+  };
 
   // This hook runs every time you navigate to the History tab
   useFocusEffect(
@@ -52,29 +81,6 @@ const HistoryScreen = () => {
     }, []),
   );
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      "Delete Workout",
-      "Are you sure you want to delete this workout from your Tiger history?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const uid = auth.currentUser?.uid;
-            if (!uid) return;
-            try {
-              await deleteDoc(doc(db, "users", uid, "workouts", id));
-              setWorkouts((prev) => prev.filter((w) => w.id !== id));
-            } catch (e) {
-              Alert.alert("Error", "Could not delete workout.");
-            }
-          },
-        },
-      ],
-    );
-  };
 
   if (loading) {
     return (
@@ -88,17 +94,36 @@ const HistoryScreen = () => {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color="#121212" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Workout History</Text>
-
-        {/* Graphs section */}
-        <View style={styles.graphs}>
-          <View style={styles.graphPlaceholder} />
-          <View style={styles.graphPlaceholder} />
-          <View style={styles.graphPlaceholder} />
-        </View>
+        {selectionMode ? (
+          <>
+            <View style={styles.selectionBar}>
+              <Text style={styles.selectionCount}>{selectedIds.size} selected</Text>
+              <View style={styles.selectionActions}>
+                <Pressable onPress={selectAll} style={styles.selectionButton}>
+                  <Text style={styles.selectionButtonText}>Select All</Text>
+                </Pressable>
+                <Pressable onPress={handleDeleteSelected} style={styles.selectionButton}>
+                  <Ionicons name="trash-outline" size={22} color="#FF453A" />
+                </Pressable>
+                <Pressable onPress={clearSelection} style={styles.selectionButton}>
+                  <Ionicons name="close" size={24} color="#121212" />
+                </Pressable>
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={28} color="#121212" />
+            </Pressable>
+            <Text style={styles.headerTitle}>Workout History</Text>
+            <View style={styles.graphs}>
+              <View style={styles.graphPlaceholder} />
+              <View style={styles.graphPlaceholder} />
+              <View style={styles.graphPlaceholder} />
+            </View>
+          </>
+        )}
       </View>
 
       {workouts.length === 0 ? (
@@ -112,8 +137,13 @@ const HistoryScreen = () => {
           renderItem={({ item }) => (
             <WorkoutCard
               workout={item}
-              onPress={() => (navigation as any).navigate("WorkoutDetail", { workout: item })}
-              onDelete={() => handleDelete(item.id)}
+              selected={selectedIds.has(item.id)}
+              onPress={() =>
+                selectionMode
+                  ? toggleSelection(item.id)
+                  : (navigation as any).navigate("WorkoutDetail", { workout: item })
+              }
+              onLongPress={() => toggleSelection(item.id)}
             />
           )}
           contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 16 }}
@@ -139,6 +169,11 @@ const styles = StyleSheet.create({
   graphs: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   graphPlaceholder: { flex: 1, height: 80, backgroundColor: "#f0f0f0", borderRadius: 12 },
   empty: { textAlign: "center", fontSize: 16, color: "#8E8E93" },
+  selectionBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  selectionCount: { fontSize: 18, fontWeight: "bold", color: "#121212" },
+  selectionActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  selectionButton: { padding: 8 },
+  selectionButtonText: { fontSize: 15, fontWeight: "600", color: "#FF6B00" },
 });
 
 export default HistoryScreen;
