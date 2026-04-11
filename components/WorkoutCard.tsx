@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { WorkoutSession } from '../types/workout';
 import { formatDate, formatDuration } from '../utils/formatWorkout';
 
 type Props = {
   workout: WorkoutSession;
   onPress: () => void;
-  onDelete: () => void;
+  onLongPress?: () => void;
+  selected?: boolean;
 };
 
-const WorkoutCard = ({ workout, onPress, onDelete }: Props) => {
+const WorkoutCard = ({ workout, onPress, onLongPress, selected }: Props) => {
   const exercises = workout.exercises ?? [];
   const strength = exercises.filter((ex) => ex.type === 'strength');
   const cardio = exercises.filter((ex) => ex.type === 'cardio');
@@ -23,12 +23,14 @@ const WorkoutCard = ({ workout, onPress, onDelete }: Props) => {
   if (cardio.length > 0) metaParts.push(`${cardio.length} cardio · ${totalRounds} rounds`);
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable
+      style={selected ? [styles.card, styles.cardSelected] : styles.card}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={300}
+    >
       <View style={styles.row}>
         <Text style={styles.date}>{formatDate(workout.date)}</Text>
-        <Pressable onPress={onDelete} hitSlop={8}>
-          <Ionicons name="trash-outline" size={18} color="#FF453A" />
-        </Pressable>
       </View>
       <Text style={styles.name} numberOfLines={2}>{exerciseNames}</Text>
       <View style={[styles.row, { marginTop: 8, marginBottom: 0 }]}>
@@ -49,6 +51,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 12,
     elevation: 3,
+  },
+  cardSelected: {
+    backgroundColor: '#FFF5EE',
+    borderWidth: 2,
+    borderColor: '#FF6B00',
   },
   row: {
     flexDirection: 'row',

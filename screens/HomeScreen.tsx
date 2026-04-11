@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { NavigationProp, useNavigation, useFocusEffect } from "@react-navigation/native";
 import { AppUser } from "../types/auth";
 import { WorkoutSession } from "../types/workout";
+import { formatDuration } from "../utils/formatWorkout";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import WorkoutCard from "../components/WorkoutCard";
@@ -42,21 +43,7 @@ const HomeScreen = ({ user }: Props) => {
     }, [user.id]),
   );
 
-  const calculateWorkoutTime = (workoutList: WorkoutSession[]) => {
-    const totalSeconds = workoutList.reduce((total, session) => {
-      const sessionSeconds =
-        session.exercises?.reduce((sum, ex) => sum + (ex.durationSeconds || 0), 0) || 0;
-      return total + sessionSeconds;
-    }, 0);
-
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${hours}h ${minutes}m ${seconds}s`;
-  };
-
-  const totalTime = calculateWorkoutTime(workouts);
+  const totalSeconds = workouts.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
 
   if (loading) {
     return (
@@ -80,7 +67,7 @@ const HomeScreen = ({ user }: Props) => {
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Total Training</Text>
-              <Text style={styles.statValue}>{workouts.length ? totalTime : "-"}</Text>
+              <Text style={styles.statValue}>{totalSeconds ? formatDuration(totalSeconds) : "-"}</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Sessions</Text>
@@ -104,7 +91,6 @@ const HomeScreen = ({ user }: Props) => {
                   key={item.id}
                   workout={item}
                   onPress={() => navigation.navigate("WorkoutDetail", { workout: item })}
-                  onDelete={() => {}}
                 />
               ))
           )}
