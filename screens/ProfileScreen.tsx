@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, } from 'react-native';
 import { deleteUser } from 'firebase/auth';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -18,6 +19,7 @@ const ProfilePic = () => (
 );
 
 const ProfileScreen = ({ user, onLogout }: Props) => {
+  const insets = useSafeAreaInsets();
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteAccount = () => {
@@ -56,7 +58,7 @@ const ProfileScreen = ({ user, onLogout }: Props) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.nameContainer}>
+      <View style={[styles.nameContainer, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.name}>
           {user.first_name} {user.surname}
         </Text>
@@ -66,7 +68,7 @@ const ProfileScreen = ({ user, onLogout }: Props) => {
         <ProfilePic />
       </View>
 
-      <View style={styles.buttonContainer}>
+      <View style={[styles.buttonContainer, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
           <Text style={styles.buttonText}>Kirjaudu ulos</Text>
         </TouchableOpacity>
@@ -95,7 +97,6 @@ const styles = StyleSheet.create({
   },
   nameContainer: {
     alignItems: 'center',
-    paddingTop: 60,
     marginBottom: 30,
   },
   name: {
@@ -137,7 +138,6 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 'auto',
-    paddingBottom: 40,
     gap: 12,
   },
   logoutButton: {

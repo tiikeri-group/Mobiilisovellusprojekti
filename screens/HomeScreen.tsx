@@ -1,203 +1,215 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { AppUser } from '../types/auth';
+import React, { useState, useCallback } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { NavigationProp, useNavigation, useFocusEffect } from "@react-navigation/native";
+import { AppUser } from "../types/auth";
 import { WorkoutSession } from "../types/workout";
-import { useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { formatDuration } from "../utils/formatWorkout";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebaseConfig";
-import WorkoutCard from '../components/WorkoutCard'
+import WorkoutCard from "../components/WorkoutCard";
 
 type Props = {
   user: AppUser;
 };
 
 const HomeScreen = ({ user }: Props) => {
-
-  const [open, setOpen] = useState<boolean>(false);
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-  const fetchWorkouts = async () => {
-    const querySnapshot = await getDocs(collection(db, "users", user.id, "workouts"));
+  const navigation = useNavigation<NavigationProp<any>>();
 
-    const data: WorkoutSession[] = [];
+  useFocusEffect(
+    useCallback(() => {
+      const fetchWorkouts = async () => {
+        try {
+          const q = query(collection(db, "users", user.id, "workouts"), orderBy("date", "desc"));
 
-    querySnapshot.forEach((doc) => {
-      data.push({ id: doc.id, ...(doc.data() as any) });
-    });
+          const querySnapshot = await getDocs(q);
+          const data: WorkoutSession[] = [];
+          querySnapshot.forEach((doc) => {
+            data.push({ id: doc.id, ...(doc.data() as any) });
+          });
 
-    setWorkouts(data);
-  };
+          setWorkouts(data);
+        } catch (error) {
+          console.error("Error fetching workouts:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-  fetchWorkouts();
-}, []);
+      fetchWorkouts();
+    }, [user.id]),
+  );
 
-  type RootTabParamList = {
-    Home: undefined;
-    Workout: undefined;
-    Camera: undefined;
-    Profile: undefined;
-    History: undefined;
-  };
+  const totalSeconds = workouts.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
 
-  const navigation = useNavigation<NavigationProp<RootTabParamList>>();
-
-  const calculateWorkoutTime = (workouts: WorkoutSession[]) => {
-  const totalSeconds = workouts.reduce((total, session) => {
-    return total + session.exercises.reduce(
-      (sum, ex) => sum + (ex.durationSeconds || 0),
-      0
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+      </SafeAreaView>
     );
-  }, 0);
-
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 3600 % 60;
-
-  return `${hours} : ${minutes} : ${seconds}`;
-};
-
-const totalTime = calculateWorkoutTime(workouts);
+  }
 
   return (
-    <>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 150 }}>
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <Pressable
-            style={styles.bigbutton}
-            onPress={() => navigation.navigate("Workout")}>
-            <Text style={styles.title}>Start workout</Text>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={styles.heroSection}>
+          <Pressable style={styles.bigButton} onPress={() => navigation.navigate("Workout")}>
+            <Text style={styles.buttonSubText}>READY?</Text>
+            <Text style={styles.buttonMainText}>START</Text>
           </Pressable>
         </View>
-        <View style={styles.info}>
-          <View style={{ flex: 1, flexDirection: "row" }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ textAlign: "center" }}>hr : min : sec</Text>
-              <View style={styles.line} />
-              {!workouts.length ? (<Text style={{ textAlign: "center" }}>-</Text>
-              ) : (
-                <Text style={{ textAlign: "center" }}>{totalTime}</Text>)}
+
+        <View style={styles.infoSection}>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Total Training</Text>
+              <Text style={styles.statValue}>{totalSeconds ? formatDuration(totalSeconds) : "-"}</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ textAlign: "center" }}>Total workouts</Text>
-              <View style={styles.line} />
-              {!workouts.length ? (<Text style={{ textAlign: "center" }}>-</Text>
-              ) : (
-                <Text style={{ textAlign: "center" }}>{workouts.length}</Text>)}
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Sessions</Text>
+              <Text style={styles.statValue}>{workouts.length || "-"}</Text>
             </View>
           </View>
-          <Text style={styles.title}>Last workout</Text>
+
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
         </View>
+
         <View style={styles.line} />
-        {workouts.length === 0 ? (
-  <Text style={styles.modalText}>You don't have any workout</Text>
-) : (
-  <View>
-    {workouts.slice(0, 5).map((item) => (
-      <WorkoutCard
-        key={item.id}
-        workout={item}
-        onPress={() => (navigation as any).navigate("WorkoutDetail", { workout: item })}
-        onDelete={() => {}}
-      />
-    ))}
-  </View>
-)}
-<View style={styles.line} />
+
+        <View style={styles.listSection}>
+          {workouts.length === 0 ? (
+            <Text style={styles.emptyText}>No Tiger Group records yet. Time to hunt! 🐅</Text>
+          ) : (
+            workouts
+              .slice(0, 3)
+              .map((item) => (
+                <WorkoutCard
+                  key={item.id}
+                  workout={item}
+                  onPress={() => navigation.navigate("WorkoutDetail", { workout: item })}
+                />
+              ))
+          )}
+        </View>
+
         <Pressable style={styles.historyButton} onPress={() => navigation.navigate("History")}>
-          <Text style={styles.historyButtonText}>View History</Text>
+          <Text style={styles.historyButtonText}>View Full History</Text>
         </Pressable>
-<View style={styles.line} />
       </ScrollView>
-    </>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 25,
+    backgroundColor: "#F9F9F9",
   },
-  bigbutton: {
-    height: 200,
-    width: 200,
-    borderRadius: 100,
-    borderWidth: 4,
-    borderColor: "#e32f45",
+  center: {
     justifyContent: "center",
     alignItems: "center",
-    overflow: "hidden",
-    backgroundColor: '#fff',
-    elevation: 10
   },
-  title: {
+  heroSection: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  bigButton: {
+    height: 180,
+    width: 180,
+    borderRadius: 90,
+    backgroundColor: "#121212",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 4,
+    borderColor: "#FF6B00",
+    elevation: 12,
+    shadowColor: "#FF6B00",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  buttonMainText: {
+    color: "#FF6B00",
     fontWeight: "bold",
-    fontSize: 24,
-    textAlign: "center",
-    padding: 10
+    fontSize: 32,
   },
-  info: {
-    flex: 2,
+  buttonSubText: {
+    color: "#888",
+    fontSize: 14,
+    letterSpacing: 3,
+    marginBottom: 4,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: "gray",
-    alignItems: 'center',
-    justifyContent: "center"
-  },
-  modalBox: {
-    width: 350,
-    backgroundColor: 'white',
-    padding: 10,
-  },
-  modalText: {
-    fontSize: 18,
-    marginBottom: 20,
-    textAlign: 'center',
-    justifyContent: "center"
-  },
-  button: {
-    outlineWidth: 3,
-    paddingVertical: 10,
+  infoSection: {
     paddingHorizontal: 20,
-    alignSelf: 'center',
   },
-  textButton: {
-    textAlign: 'center',
-    fontSize: 20,
-  },
-  card: {
+  statsRow: {
     flexDirection: "row",
-    padding: 12,
-    marginVertical: 6,
-    marginHorizontal: 10,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    elevation: 3
+    marginBottom: 25,
+    gap: 15,
   },
-  stats: {
-    flexDirection: "row",
-    fontSize: 24
+  statBox: {
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 15,
+    alignItems: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+  },
+  statLabel: {
+    color: "#8E8E93",
+    fontSize: 11,
+    textTransform: "uppercase",
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#121212",
+  },
+  sectionTitle: {
+    fontWeight: "bold",
+    fontSize: 22,
+    color: "#121212",
+  },
+  listSection: {
+    paddingHorizontal: 10,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#8E8E93",
+    textAlign: "center",
+    marginVertical: 20,
+    fontStyle: "italic",
   },
   historyButton: {
-    marginHorizontal: 15,
-    padding: 14,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    alignItems: 'center',
+    margin: 20,
+    padding: 18,
+    backgroundColor: "#121212",
+    borderRadius: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333",
   },
   historyButtonText: {
-    fontWeight: '600',
+    color: "#FF6B00",
+    fontWeight: "bold",
     fontSize: 16,
+    textTransform: "uppercase",
   },
   line: {
     height: 1,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "#E0E0E0",
     marginVertical: 15,
-    marginHorizontal: 15,
-    outlineWidth: 0.5
-  }
+    marginHorizontal: 20,
+  },
 });
 
 export default HomeScreen;
