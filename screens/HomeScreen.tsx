@@ -67,7 +67,9 @@ const HomeScreen = ({ user }: Props) => {
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Total Training</Text>
-              <Text style={styles.statValue}>{totalSeconds ? formatDuration(totalSeconds) : "-"}</Text>
+              <Text style={styles.statValue}>
+                {totalSeconds ? formatDuration(totalSeconds) : "-"}
+              </Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Sessions</Text>
@@ -157,10 +159,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 15,
     alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+
+    borderWidth: 2,
+    borderColor: "#121212",
   },
   statLabel: {
     color: "#8E8E93",
@@ -205,10 +206,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   line: {
-    height: 1,
-    backgroundColor: "#E0E0E0",
+    height: 3,
+    backgroundColor: "#121212",
     marginVertical: 15,
     marginHorizontal: 20,
+    borderRadius: 2,
   },
 });
 
