@@ -30,11 +30,7 @@ export const buildTimeData = (sessions: WorkoutSession[], range: number) => {
   return sessions
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map(session => {
-      const totalSeconds = session.exercises.reduce((sum, ex) => {
-        return sum + (ex.durationSeconds || 0);
-      }, 0);
-
-      const minutes = Math.round(totalSeconds / 60);
+      const minutes = Math.round((session.durationSeconds || 0) / 60);
 
       return {
         value: minutes,
