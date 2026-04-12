@@ -11,14 +11,6 @@ type Props = {
   onRemoveExercise: () => void;
 };
 
-const formatTimeInput = (text: string) => {
-  const cleaned = text.replace(/[^0-9]/g, "");
-  if (cleaned.length > 2) {
-    return `${cleaned.slice(0, cleaned.length - 2)}:${cleaned.slice(-2)}`;
-  }
-  return cleaned;
-};
-
 const ActiveWorkoutCard = ({
   workout,
   onUpdateSet,
@@ -40,7 +32,7 @@ const ActiveWorkoutCard = ({
       <View style={styles.labelRow}>
         <Text style={[styles.labelText, { width: 35 }]}>{isCardio ? "Rnd" : "Set"}</Text>
         <Text style={[styles.labelText, { flex: 1, textAlign: "center" }]}>
-          {isCardio ? "Duration (M:SS)" : "Weight (kg)"}
+          {isCardio ? "Duration (MIN : SEC)" : "Weight (kg)"}
         </Text>
         {!isCardio ? (
           <View style={styles.repsHeaderWrapper}>
@@ -54,32 +46,63 @@ const ActiveWorkoutCard = ({
       {workout.sets.map((set, index) => (
         <View key={set.id} style={styles.setRow}>
           <Text style={styles.setNumber}>{index + 1}</Text>
-          <View style={styles.inputBubble}>
-            <TextInput
-              style={styles.inputText}
-              keyboardType="number-pad"
-              placeholder={isCardio ? "0:00" : "0"}
-              value={set.weight}
-              onChangeText={(val) =>
-                onUpdateSet(index, "weight", isCardio ? formatTimeInput(val) : val)
-              }
-            />
-          </View>
 
-          {!isCardio ? (
-            <View style={styles.repsInputWrapper}>
-              <Text style={styles.multiplier}>×</Text>
+          {isCardio ? (
+            /* Cardio Split Input: weight = mins, reps = secs */
+            <View style={styles.cardioInputWrapper}>
+              <View style={styles.inputBubble}>
+                <TextInput
+                  style={styles.inputText}
+                  keyboardType="number-pad"
+                  placeholder="min"
+                  value={set.weight}
+                  onChangeText={(val) => onUpdateSet(index, "weight", val)}
+                />
+              </View>
+              <Text style={styles.timeDivider}>:</Text>
+              <View style={styles.inputBubble}>
+                <TextInput
+                  style={styles.inputText}
+                  keyboardType="number-pad"
+                  placeholder="sec"
+                  maxLength={2}
+                  value={set.reps}
+                  onChangeText={(val) => {
+                    const num = parseInt(val);
+                    if (isNaN(num) || (num >= 0 && num < 60)) {
+                      onUpdateSet(index, "reps", val);
+                    }
+                  }}
+                />
+              </View>
+            </View>
+          ) : (
+            /* Strength Standard Input */
+            <>
               <View style={styles.inputBubble}>
                 <TextInput
                   style={styles.inputText}
                   keyboardType="number-pad"
                   placeholder="0"
-                  value={set.reps}
-                  onChangeText={(val) => onUpdateSet(index, "reps", val)}
+                  value={set.weight}
+                  onChangeText={(val) => onUpdateSet(index, "weight", val)}
                 />
               </View>
-            </View>
-          ) : null}
+
+              <View style={styles.repsInputWrapper}>
+                <Text style={styles.multiplier}>×</Text>
+                <View style={styles.inputBubble}>
+                  <TextInput
+                    style={styles.inputText}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    value={set.reps}
+                    onChangeText={(val) => onUpdateSet(index, "reps", val)}
+                  />
+                </View>
+              </View>
+            </>
+          )}
 
           <TouchableOpacity onPress={() => onRemoveSet(index)} style={styles.deleteSetButton}>
             <Ionicons name="close-circle" size={20} color="#C7C7CC" />
@@ -127,6 +150,8 @@ const styles = StyleSheet.create({
     width: "100%",
     textAlign: "center",
   },
+  cardioInputWrapper: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
+  timeDivider: { fontSize: 20, fontWeight: "bold", color: "#FF6B00" },
   repsInputWrapper: { flexDirection: "row", flex: 1, alignItems: "center", gap: 10 },
   multiplier: { color: "#C7C7CC", fontSize: 18, width: 20, textAlign: "center" },
   deleteSetButton: { padding: 5 },

@@ -28,6 +28,8 @@ export default function WorkoutScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeExercises, setActiveExercises] = useState<WorkoutHistoryEntry[]>([]);
+
+  // Real-time Stop Watch
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -42,8 +44,12 @@ export default function WorkoutScreen() {
     }
   }, [activeExercises.length]);
 
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
-
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    },
+    [],
+  );
 
   const TypeSelect = async (type: "cardio" | "strength") => {
     setLoading(true);
@@ -92,12 +98,16 @@ export default function WorkoutScreen() {
       return;
     }
 
+    // Validation: Require at least one field for cardio, both for strength
     const incomplete = activeExercises.some((ex) =>
-      ex.sets.some((s) => !s.weight || (ex.type !== "cardio" && !s.reps)),
+      ex.sets.some((s) => {
+        if (ex.type === "cardio") return !s.weight && !s.reps;
+        return !s.weight || !s.reps;
+      }),
     );
 
     if (incomplete) {
-      Alert.alert("Incomplete sets", "Please fill in all fields before finishing.");
+      Alert.alert("Incomplete sets", "Please fill in your exercise data before finishing.");
       return;
     }
 
@@ -105,18 +115,31 @@ export default function WorkoutScreen() {
       setSaving(true);
       const session = {
         date: new Date().toISOString(),
-        durationSeconds: elapsedSeconds,
-        exercises: activeExercises.map((ex) => ({
-          exerciseName: ex.exerciseName,
-          type: ex.type,
-          muscle: ex.muscle ?? null,
-          sets: ex.sets,
-          durationSeconds: ex.durationSeconds,
-        })),
+        durationSeconds: elapsedSeconds, // Save total active stopwatch time
+        exercises: activeExercises.map((ex) => {
+          // Split-bubble logic: combine mins + secs into total seconds
+          const exerciseDuration =
+            ex.type === "cardio"
+              ? ex.sets.reduce((sum, set) => {
+                  const mins = parseInt(set.weight) || 0;
+                  const secs = parseInt(set.reps) || 0;
+                  return sum + mins * 60 + secs;
+                }, 0)
+              : 0;
+
+          return {
+            exerciseName: ex.exerciseName,
+            type: ex.type,
+            muscle: ex.muscle ?? null,
+            sets: ex.sets,
+            durationSeconds: exerciseDuration,
+          };
+        }),
       };
 
       await addDoc(collection(db, "users", uid, "workouts"), session);
       setActiveExercises([]);
+      setElapsedSeconds(0);
       Alert.alert("Workout saved!", "Your Tiger Group workout is in the books!");
       setStep("OVERVIEW");
     } catch (error) {
@@ -137,7 +160,6 @@ export default function WorkoutScreen() {
     <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       {step === "OVERVIEW" && (
         <View style={{ flex: 1 }}>
-          {/* New Header Row */}
           <View style={styles.headerRow}>
             <View>
               <Text style={styles.title}>Summary</Text>
@@ -188,11 +210,7 @@ export default function WorkoutScreen() {
                     const next = [...prev];
                     next[index].sets.splice(setIndex, 1);
                     if (next[index].sets.length === 0) {
-                      next[index].sets.push({
-                        id: Date.now().toString(),
-                        weight: "",
-                        reps: "",
-                      });
+                      next[index].sets.push({ id: Date.now().toString(), weight: "", reps: "" });
                     }
                     return next;
                   });
@@ -316,7 +334,7 @@ const styles = StyleSheet.create({
   backText: { color: "#FF6B00", fontSize: 18, fontWeight: "bold" },
   floatingAddButton: {
     position: "absolute",
-    bottom: 30, // Moved back down since finish button is gone from bottom
+    bottom: 30,
     right: 20,
     backgroundColor: "#FF6B00",
     width: 64,
