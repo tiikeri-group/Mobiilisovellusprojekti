@@ -98,7 +98,6 @@ export default function WorkoutScreen() {
       return;
     }
 
-    // Validation: Require at least one field for cardio, both for strength
     const incomplete = activeExercises.some((ex) =>
       ex.sets.some((s) => {
         if (ex.type === "cardio") return !s.weight && !s.reps;
@@ -115,9 +114,8 @@ export default function WorkoutScreen() {
       setSaving(true);
       const session = {
         date: new Date().toISOString(),
-        durationSeconds: elapsedSeconds, // Save total active stopwatch time
+        durationSeconds: elapsedSeconds,
         exercises: activeExercises.map((ex) => {
-          // Split-bubble logic: combine mins + secs into total seconds
           const exerciseDuration =
             ex.type === "cardio"
               ? ex.sets.reduce((sum, set) => {

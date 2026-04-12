@@ -58,7 +58,6 @@ const WorkoutDetailScreen = () => {
                 </>
               )}
 
-              {/* Tiger Fix: Render Cardio inputs back as a combined M:SS string */}
               {isCardio && sets.length > 0 && (
                 <>
                   <View style={styles.headerRow}>

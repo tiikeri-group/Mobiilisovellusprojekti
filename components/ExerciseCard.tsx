@@ -48,7 +48,6 @@ const ActiveWorkoutCard = ({
           <Text style={styles.setNumber}>{index + 1}</Text>
 
           {isCardio ? (
-            /* Cardio Split Input: weight = mins, reps = secs */
             <View style={styles.cardioInputWrapper}>
               <View style={styles.inputBubble}>
                 <TextInput
@@ -77,7 +76,6 @@ const ActiveWorkoutCard = ({
               </View>
             </View>
           ) : (
-            /* Strength Standard Input */
             <>
               <View style={styles.inputBubble}>
                 <TextInput
@@ -105,7 +103,7 @@ const ActiveWorkoutCard = ({
           )}
 
           <TouchableOpacity onPress={() => onRemoveSet(index)} style={styles.deleteSetButton}>
-            <Ionicons name="close-circle" size={20} color="#C7C7CC" />
+            <Ionicons name="close-circle" size={20} color="#ff0000" />
           </TouchableOpacity>
         </View>
       ))}
@@ -126,14 +124,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#121212",
   },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 15 },
   exerciseName: { fontSize: 18, fontWeight: "bold", color: "#121212" },
   labelRow: { flexDirection: "row", marginBottom: 8, paddingHorizontal: 4, alignItems: "center" },
-  labelText: { color: "#8E8E93", fontSize: 12, fontWeight: "600", textTransform: "uppercase" },
+  labelText: { color: "#000000", fontSize: 12, fontWeight: "600", textTransform: "uppercase" },
   repsHeaderWrapper: { flexDirection: "row", flex: 1 },
   setRow: { flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 10 },
-  setNumber: { width: 35, fontSize: 16, fontWeight: "600", color: "#8E8E93", textAlign: "center" },
+  setNumber: { width: 35, fontSize: 16, fontWeight: "600", color: "#000000", textAlign: "center" },
   inputBubble: {
     flex: 1,
     backgroundColor: "#F9F9F9",
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#121212",
   },
   inputText: {
     fontSize: 17,
