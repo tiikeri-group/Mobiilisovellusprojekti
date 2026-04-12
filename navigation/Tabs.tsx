@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -16,9 +16,10 @@ const Tab = createBottomTabNavigator();
 type Props = {
   user: AppUser;
   onLogout: () => Promise<void> | void;
+  onUserUpdate: (updatedUser: AppUser) => void;
 };
 
-const Tabs = ({ user, onLogout }: Props) => {
+const Tabs = ({ user, onLogout, onUserUpdate }: Props) => {
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
@@ -71,6 +72,14 @@ const Tabs = ({ user, onLogout }: Props) => {
 
       <Tab.Screen
         name="Camera"
+        listeners={{
+          tabPress: (e) => {
+            if (!user.subscription_status) {
+              e .preventDefault();
+              Alert.alert('You need active membership to access the camera.');
+            }
+          },
+        }}
         options={{
           tabBarIcon: ({ focused }) => {
             return(
@@ -114,7 +123,7 @@ const Tabs = ({ user, onLogout }: Props) => {
           },
         }}
       >
-        {() => <ProfileScreen user={user} onLogout={onLogout} />}
+        {() => <ProfileScreen user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

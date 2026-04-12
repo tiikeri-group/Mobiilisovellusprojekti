@@ -32,6 +32,21 @@ const CameraScreen = ({ user }: CameraScreenProps) => {
     setSuccess(null);
     setFailMessage('');
 
+        if (!user.subscription_status) {
+      setLoading(false);
+      setSuccess(false);
+      setFailMessage('Et ole asiakas');
+
+      setTimeout(() => {
+        setScanned(false);
+        setScannedDoorId(null);
+        setSuccess(null);
+        setFailMessage('');
+      }, 1500);
+
+      return;
+    }
+
     let unlocked = false;
 
     try {

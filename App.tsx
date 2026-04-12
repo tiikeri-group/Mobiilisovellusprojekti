@@ -29,6 +29,10 @@ export default function App() {
     return unsubscribe;
   }, []);
 
+    const handleUserUpdate = (updatedUser: AppUser) => {
+    setUser(updatedUser);
+  };
+
   if (loadingAuth) {
     return (
       <View style={styles.container}>
@@ -41,7 +45,7 @@ export default function App() {
     <SafeAreaProvider>
       <NavigationContainer>
         {user ? (
-          <Tabs user={user} onLogout={() => auth.signOut()} />
+          <Tabs user={user} onLogout={() => auth.signOut()} onUserUpdate={handleUserUpdate} />
         ) : (
           <AuthStack />
         )}
