@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, } from 'react-native';
 import { deleteUser } from 'firebase/auth';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebaseConfig';
 import { AppUser } from '../types/auth';
 
 type Props = {
   user: AppUser;
   onLogout: () => Promise<void> | void;
+  onUserUpdate: (updatedUser: AppUser) => void;
 };
 
 const ProfilePic = () => (
@@ -18,21 +19,47 @@ const ProfilePic = () => (
   </View>
 );
 
-const ProfileScreen = ({ user, onLogout }: Props) => {
+const ProfileScreen = ({ user, onLogout, onUserUpdate }: Props) => {
   const insets = useSafeAreaInsets();
   const [deleting, setDeleting] = useState(false);
+  const [updatingSubscription, setUpdatingSubscription] = useState(false);
+
+  const handleToggleSubscription = async () => {
+    try {
+      setUpdatingSubscription(true);
+      const firebaseUser = auth.currentUser;
+
+      if (!firebaseUser) {
+        setUpdatingSubscription(false);
+        return;
+      }
+
+      const newStatus = !user.subscription_status;
+
+      await updateDoc(doc(db, 'users', firebaseUser.uid), {
+        subscription_status: newStatus,
+      });
+
+      onUserUpdate({
+        ...user,
+        subscription_status: newStatus,
+      });
+    } finally {
+      setUpdatingSubscription(false);
+    }
+  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Poista käyttäjä',
-      'Oletko varma että haluat poistaa käyttäjän?',
+      'Delete user',
+      'Are you sure you want to delete the user?',
       [
         {
-          text: 'Peruuta',
+          text: 'Cancel',
           style: 'cancel',
         },
         {
-          text: 'Poista',
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -68,9 +95,29 @@ const ProfileScreen = ({ user, onLogout }: Props) => {
         <ProfilePic />
       </View>
 
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusText}>
+          Membership: {user.subscription_status ? 'On' : 'Off'}
+        </Text>
+      </View>
+
       <View style={[styles.buttonContainer, { paddingBottom: insets.bottom + 20 }]}>
+        <TouchableOpacity
+          style={styles.subscriptionButton}
+          onPress={handleToggleSubscription}
+          disabled={updatingSubscription}
+        >
+          {updatingSubscription ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text style={styles.buttonText}>
+              Membership {user.subscription_status ? 'Off' : 'On'}
+            </Text>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-          <Text style={styles.buttonText}>Kirjaudu ulos</Text>
+          <Text style={styles.buttonText}>Logout</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -81,7 +128,7 @@ const ProfileScreen = ({ user, onLogout }: Props) => {
           {deleting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.deleteButtonText}>Poista käyttäjä</Text>
+            <Text style={styles.deleteButtonText}>Delete account</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -132,13 +179,23 @@ const styles = StyleSheet.create({
     borderRadius: 46,
     backgroundColor: '#bdbdbd',
   },
-  infoContainer: {
+  statusContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   buttonContainer: {
     marginTop: 'auto',
     gap: 12,
+  },
+  subscriptionButton: {
+    backgroundColor: '#cfe8cf',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   logoutButton: {
     backgroundColor: '#ddd',
