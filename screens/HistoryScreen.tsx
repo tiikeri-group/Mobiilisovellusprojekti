@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Modal
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,12 +16,15 @@ import { WorkoutSession } from "../types/workout";
 import WorkoutCard from "../components/WorkoutCard";
 import { collection, getDocs, orderBy, query, doc, deleteDoc } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
+import { buildTimeData, buildVolumeData, buildPRData, MyBarChart } from "../components/ChartData";
 
 const HistoryScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedChart, setSelectedChart] = useState<null | "time" | "volume" | "pr">(null);
+  const [range, setRange] = useState(7);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectionMode = selectedIds.size > 0;
 
@@ -118,10 +122,22 @@ const HistoryScreen = () => {
             </Pressable>
             <Text style={styles.headerTitle}>Workout History</Text>
             <View style={styles.graphs}>
-              <View style={styles.graphPlaceholder} />
-              <View style={styles.graphPlaceholder} />
-              <View style={styles.graphPlaceholder} />
-            </View>
+  <Pressable onPress={() => setSelectedChart("time")}>
+    <View style={styles.graphPlaceholder}>
+      <Text>Time chart</Text>
+    </View>
+  </Pressable>
+  <Pressable onPress={() => setSelectedChart("volume")}>
+    <View style={styles.graphPlaceholder}>
+      <Text>Volume chart</Text>
+    </View>
+  </Pressable>
+  <Pressable onPress={() => setSelectedChart("pr")}>
+    <View style={styles.graphPlaceholder}>
+      <Text>PR chart</Text>
+    </View>
+  </Pressable>
+</View>
           </>
         )}
       </View>
@@ -149,9 +165,42 @@ const HistoryScreen = () => {
           contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 16 }}
         />
       )}
+      <Modal visible={selectedChart !== null} transparent animationType="fade">
+  <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
+    <View style={{ width: "90%", backgroundColor: "#fff", borderRadius: 12, padding: 20 }}>
+      <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+        {selectedChart === "time" ? "Time" : selectedChart === "volume" ? "Volume" : "PR"}
+      </Text>
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+  <Pressable onPress={() => setRange(7)}>
+    <Text style={{ color: range === 7 ? "blue" : "black" }}>7d</Text>
+  </Pressable>
+
+  <Pressable onPress={() => setRange(30)}>
+    <Text style={{ color: range === 30 ? "blue" : "black" }}>30d</Text>
+  </Pressable>
+</View>
+      <MyBarChart
+        data={selectedChart === "time"
+            ? buildTimeData(workouts, range)
+            : selectedChart === "volume"
+            ? buildVolumeData(workouts, range)
+            : buildPRData(workouts, range)
+        }
+      />
+
+      {/* SULJE */}
+      <Pressable onPress={() => setSelectedChart(null)}>
+        <Text style={{ marginTop: 15, color: "blue" }}>Close</Text>
+      </Pressable>
+    </View>
+  </View>
+</Modal>
     </View>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9F9F9" },
@@ -166,8 +215,8 @@ const styles = StyleSheet.create({
   },
   backButton: { marginBottom: 8 },
   headerTitle: { fontSize: 28, fontWeight: "bold", marginBottom: 16, color: "#121212" },
-  graphs: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
-  graphPlaceholder: { flex: 1, height: 80, backgroundColor: "#f0f0f0", borderRadius: 12 },
+  graphs: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 10,},
+  graphPlaceholder: { width: 100, height: 80, backgroundColor: "#f0f0f0", borderRadius: 12, justifyContent: "center", alignItems: "center", },
   empty: { textAlign: "center", fontSize: 16, color: "#8E8E93" },
   selectionBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   selectionCount: { fontSize: 18, fontWeight: "bold", color: "#121212" },
