@@ -27,6 +27,19 @@ const HistoryScreen = () => {
   const [range, setRange] = useState(7);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectionMode = selectedIds.size > 0;
+  
+  const getUnit = (chart: string) => {
+  switch (chart) {
+    case "time":
+      return "min";
+    case "volume":
+      return "kg";
+    case "pr":
+      return "kg";
+    default:
+      return "";
+  }
+};
 
   const toggleSelection = (id: string) => {
     setSelectedIds((prev) => {
@@ -171,22 +184,27 @@ const HistoryScreen = () => {
       <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
         {selectedChart === "time" ? "Time" : selectedChart === "volume" ? "Volume" : "PR"}
       </Text>
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
-  <Pressable onPress={() => setRange(7)}>
-    <Text style={{ color: range === 7 ? "blue" : "black" }}>7d</Text>
-  </Pressable>
+      {selectedChart !== "pr" && (
+  <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+    <Pressable onPress={() => setRange(7)}>
+      <Text style={{ color: range === 7 ? "blue" : "black" }}>7d</Text>
+    </Pressable>
 
-  <Pressable onPress={() => setRange(30)}>
-    <Text style={{ color: range === 30 ? "blue" : "black" }}>30d</Text>
-  </Pressable>
-</View>
+    <Pressable onPress={() => setRange(30)}>
+      <Text style={{ color: range === 30 ? "blue" : "black" }}>30d</Text>
+    </Pressable>
+  </View>
+)}
       <MyBarChart
         data={selectedChart === "time"
             ? buildTimeData(workouts, range)
             : selectedChart === "volume"
             ? buildVolumeData(workouts, range)
-            : buildPRData(workouts, range)
+            : buildPRData(workouts, range
+            )
         }
+        unit={selectedChart ? getUnit(selectedChart) : ""}
+        chartType={selectedChart || undefined}
       />
 
       {/* SULJE */}
