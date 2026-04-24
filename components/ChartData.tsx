@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { View } from "react-native";
 import { BarChart } from "react-native-gifted-charts";
 import { WorkoutSession } from "../types/workout";
 
 type Props = {
   data: { value: number; label: string }[];
+  unit: string;
+  chartType?: "time" | "volume" | "pr";
 };
-
 
 const getLastDays = (sessions: WorkoutSession[], days: number) => {
   return [...sessions]
@@ -24,13 +25,26 @@ const formatDateLabel = (dateString: string) => {
   return `${day}.${month}`;
 }
 
-export const buildTimeData = (sessions: WorkoutSession[], range: number) => {
+export const buildTimeData = (
+  sessions: WorkoutSession[],
+  range: number
+) => {
   const filtered = getLastDays(sessions, range);
 
-  return sessions
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  return [...filtered]
+    .sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+    )
     .map(session => {
-      const minutes = Math.round((session.durationSeconds || 0) / 60);
+
+      const totalSeconds = session.exercises.reduce(
+        (sum, ex) => sum + (ex.durationSeconds || 0),
+        0
+      );
+
+      const minutes = Math.round(totalSeconds / 60);
 
       return {
         value: minutes,
@@ -39,11 +53,20 @@ export const buildTimeData = (sessions: WorkoutSession[], range: number) => {
     });
 };
 
-export const buildVolumeData = (sessions: WorkoutSession[], range: number) => {
+export const buildVolumeData = (
+  sessions: WorkoutSession[],
+  range: number
+) => {
   const filtered = getLastDays(sessions, range);
-  return [...sessions]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  return [...filtered]
+    .sort(
+      (a, b) =>
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+    )
     .map(session => {
+
       let totalVolume = 0;
 
       session.exercises.forEach(ex => {
@@ -62,43 +85,53 @@ export const buildVolumeData = (sessions: WorkoutSession[], range: number) => {
     });
 };
 
-export const buildPRData = (sessions: WorkoutSession[], range: number) => {
-  const filtered = getLastDays(sessions, range);
-  return [...sessions]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .map(session => {
-      let maxWeight = 0;
+export const buildPRData = ( sessions: WorkoutSession[], range: number ) => {
 
-      session.exercises.forEach(ex => {
-        ex.sets.forEach(set => {
-          const weight = Number(set.weight) || 0;
+  const exercisePRMap: Record<string, number> = {};
 
-          if (weight > maxWeight) {
-            maxWeight = weight;
-          }
-        });
+  sessions.forEach(session => {
+    session.exercises.forEach(ex => {
+      ex.sets.forEach(set => {
+
+        const weight = Number(set.weight) || 0;
+
+        if (weight > (exercisePRMap[ex.exerciseName] || 0)) {
+          exercisePRMap[ex.exerciseName] = weight;
+        }
+
       });
-
-      return {
-        value: maxWeight,
-        label: formatDateLabel(session.date)
-      };
     });
+  });
+
+  return Object.keys(exercisePRMap).map(exerciseName => {
+    return {
+      value: exercisePRMap[exerciseName],
+      label: exerciseName
+    };
+  });
+
 };
 
-export const MyBarChart = ({ data }: Props) => {
+export const MyBarChart = ({ data, unit, chartType }: Props) => {
+
+  const isPRChart = chartType === "pr";
 
   return (
-    <View>
+      <View>
       <BarChart data={data} 
-      barWidth={8}
-      spacing={22}
+      barWidth={isPRChart ? 12 : 8}
+      spacing={isPRChart ? 60 : 22}
+      xAxisLabelTextStyle={{ fontSize: isPRChart ? 6 : 10 }}
       height={150}
-      xAxisLabelTextStyle={{ fontSize: 10 }}
+      isAnimated
+      scrollToEnd={false}
+      initialSpacing={isPRChart ? 40 : 20}
+      endSpacing={10}
       yAxisThickness={1}
       xAxisThickness={1}
       yAxisTextStyle={{ fontSize: 10 }}
       noOfSections={5}
+      formatYLabel={(value) => `${value} ${unit}`}
       />
     </View>
   );
