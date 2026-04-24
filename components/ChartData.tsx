@@ -39,12 +39,7 @@ export const buildTimeData = (
     )
     .map(session => {
 
-      const totalSeconds = session.exercises.reduce(
-        (sum, ex) => sum + (ex.durationSeconds || 0),
-        0
-      );
-
-      const minutes = Math.round(totalSeconds / 60);
+        const minutes = Math.round((session.durationSeconds || 0) / 60);
 
       return {
         value: minutes,
